@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Infinite Canvas</title>
+  <meta name="description" content="The mythology engine for the age of AI. Founded by Elijah Allan-Blitz." />
+
+  <!-- Cormorant Garamond — display serif, high contrast, mythological weight -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet" />
+
+  <!-- General Sans — clean, restrained body/label type -->
+  <link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Grain overlay -->
+  <div class="grain" aria-hidden="true"></div>
+
+  <!-- Vignette -->
+  <div class="vignette" aria-hidden="true"></div>
+
+  <main class="stage">
+
+    <!-- Logo / Wordmark -->
+    <header class="wordmark" aria-label="Infinite Canvas">
+      <svg class="ic-mark" width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+        <!-- Nested rectangles suggesting infinite regress / infinite canvas -->
+        <rect x="1" y="1" width="26" height="26" stroke="currentColor" stroke-width="1.2"/>
+        <rect x="5.5" y="5.5" width="17" height="17" stroke="currentColor" stroke-width="0.8" opacity="0.6"/>
+        <rect x="9.5" y="9.5" width="9" height="9" stroke="currentColor" stroke-width="0.5" opacity="0.35"/>
+      </svg>
+      <span class="wordmark-text">INFINITE&nbsp;CANVAS</span>
+    </header>
+
+    <!-- Core thesis -->
+    <section class="thesis" aria-labelledby="thesis-text">
+      <p id="thesis-text" class="thesis-line line-1">Archetype is Algorithm.</p>
+      <p class="thesis-line line-2">Algorithm is Archetype.</p>
+    </section>
+
+    <!-- Mission -->
+    <p class="mission">
+      Expand creativity, imagination, joy, love,<br>magic, light, and abundance in the world.
+    </p>
+
+    <!-- Founder -->
+    <p class="founder">Founded by <a href="https://elijahab.com" target="_blank" rel="noopener" class="founder-link">Elijah Allan-Blitz</a></p>
+
+    <!-- Contact -->
+    <footer class="contact">
+      <a href="mailto:hello@infinitecanvas.space" class="contact-link">hello@infinitecanvas.space</a>
+    </footer>
+
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
