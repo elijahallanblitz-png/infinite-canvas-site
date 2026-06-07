@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Suno Prompt Studio</title>
+  <meta name="description" content="Upload an audio file and get a Suno-ready prompt that musically describes the song. Runs entirely in your browser." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet" />
+  <link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500&display=swap" rel="stylesheet" />
+  <style>
+/* ─── TOKENS ─────────────────────────────────────────── */
+:root {
+  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-body:    'General Sans', 'Helvetica Neue', sans-serif;
+
+  --text-xs:   clamp(0.7rem,  0.65rem + 0.2vw,  0.8rem);
+  --text-sm:   clamp(0.8rem,  0.75rem + 0.25vw, 0.9rem);
+  --text-base: clamp(1rem,    0.95rem + 0.25vw, 1.125rem);
+  --text-xl:   clamp(1.5rem,  1.1rem  + 1.5vw,  2.5rem);
+  --text-2xl:  clamp(2.2rem,  1rem    + 4vw,    4.5rem);
+  --text-3xl:  clamp(2.8rem,  0.5rem  + 6vw,    6rem);
+
+  --space-2:  0.5rem;
+  --space-3:  0.75rem;
+  --space-4:  1rem;
+  --space-6:  1.5rem;
+  --space-8:  2rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+
+  /* Palette — pure cinematic black, warm off-white, amber accent */
+  --color-bg:           #070707;
+  --color-text:         #e8e4dc;
+  --color-text-muted:   rgba(232, 228, 220, 0.78);
+  --color-text-faint:   rgba(232, 228, 220, 0.58);
+  --color-accent:       #c8a96e;   /* warm amber — the fire */
+  --color-accent-hover: #dbbf8a;
+
+  --transition: 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ─── RESET ──────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100dvh;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  overflow: hidden; /* single-screen — no scroll */
+  position: relative;
+}
+
+a { color: inherit; text-decoration: none; transition: color var(--transition), opacity var(--transition); }
+button { cursor: pointer; background: none; border: none; font: inherit; color: inherit; }
+
+/* ─── GRAIN ──────────────────────────────────────────── */
+.grain {
+  position: fixed;
+  inset: -50%;
+  width: 200%;
+  height: 200%;
+  pointer-events: none;
+  z-index: 10;
+  opacity: 0.032;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-size: 256px 256px;
+  animation: grain-drift 8s steps(10) infinite;
+}
+
+@keyframes grain-drift {
+  0%  { transform: translate(0, 0); }
+  10% { transform: translate(-2%, -3%); }
+  20% { transform: translate(3%, 1%); }
+  30% { transform: translate(-1%, 4%); }
+  40% { transform: translate(4%, -2%); }
+  50% { transform: translate(-3%, 2%); }
+  60% { transform: translate(2%, -4%); }
+  70% { transform: translate(-4%, 1%); }
+  80% { transform: translate(1%, 3%); }
+  90% { transform: translate(3%, -1%); }
+  100%{ transform: translate(0, 0); }
+}
+
+/* ─── VIGNETTE ───────────────────────────────────────── */
+.vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  background: radial-gradient(
+    ellipse 80% 70% at 50% 50%,
+    transparent 40%,
+    rgba(0,0,0,0.55) 100%
+  );
+}
+
+/* ─── STAGE ──────────────────────────────────────────── */
+.stage {
+  position: relative;
+  z-index: 20;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--space-12) var(--space-6);
+  gap: 0;
+}
+
+/* ─── WORDMARK ───────────────────────────────────────── */
+.wordmark {
+  position: fixed;
+  top: var(--space-8);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  opacity: 0;
+  animation: fade-up 1s 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.ic-mark {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.wordmark-text {
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* ─── THESIS ─────────────────────────────────────────── */
+.thesis {
+  margin-bottom: var(--space-8);
+}
+
+.thesis-line {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  font-weight: 300;
+  font-style: italic;
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+  color: var(--color-text);
+  opacity: 0;
+}
+
+.thesis-line.line-1 {
+  animation: fade-up 1.2s 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.thesis-line.line-2 {
+  animation: fade-up 1.2s 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ─── MISSION ────────────────────────────────────────── */
+.mission {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 300;
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+  max-width: 36ch;
+  margin-bottom: var(--space-12);
+  opacity: 0;
+  animation: fade-up 1.2s 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ─── FOUNDER ────────────────────────────────────────── */
+.founder {
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+  margin-bottom: var(--space-6);
+  opacity: 0;
+  animation: fade-up 1.2s 1.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.founder-link:hover {
+  color: var(--color-text-muted);
+}
+
+/* ─── TOOLS ──────────────────────────────────────────── */
+.tools {
+  margin-top: calc(var(--space-8) * -1);
+  margin-bottom: var(--space-4);
+  opacity: 0;
+  animation: fade-up 1.2s 1.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ─── CONTACT ────────────────────────────────────────── */
+.contact {
+  position: fixed;
+  bottom: var(--space-8);
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0;
+  animation: fade-up 1.2s 1.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.contact-link {
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  color: var(--color-accent);
+  position: relative;
+}
+
+.contact-link::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: var(--color-accent);
+  transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.contact-link:hover::after {
+  width: 100%;
+}
+
+.contact-link:hover {
+  color: var(--color-accent-hover);
+}
+
+/* ─── ANIMATIONS ─────────────────────────────────────── */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ─── REDUCED MOTION ─────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .grain { animation: none; }
+  .wordmark, .thesis-line, .mission, .founder, .contact, .tools {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ─── MOBILE ─────────────────────────────────────────── */
+@media (max-width: 600px) {
+  body { overflow: auto; }
+
+  .wordmark {
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: none;
+    margin-bottom: var(--space-16);
+  }
+
+  .contact {
+    position: relative;
+    bottom: auto;
+    left: auto;
+    transform: none;
+    margin-top: var(--space-12);
+  }
+
+  .stage {
+    justify-content: flex-start;
+    padding-top: var(--space-16);
+    overflow: auto;
+  }
+}
+
+
+/* ─── SUNO PROMPT STUDIO ─────────────────────────────── */
+/* Reuses tokens from style.css (palette, fonts, spacing). */
+
+.app-body {
+  overflow-y: auto;            /* this page scrolls, unlike the landing */
+  overflow-x: hidden;
+}
+
+.app {
+  position: relative;
+  z-index: 20;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: var(--space-16) var(--space-6) var(--space-20);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+/* ─── HEADER ─────────────────────────────────────────── */
+.app-header { text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--space-3); }
+
+.app-wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-4);
+  opacity: 0.8;
+  transition: opacity var(--transition);
+}
+.app-wordmark:hover { opacity: 1; }
+.app-wordmark .wordmark-text { font-size: var(--text-xs); letter-spacing: 0.22em; }
+
+.app-title {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-style: italic;
+  font-size: var(--text-2xl);
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+}
+
+.app-sub {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 300;
+  font-size: var(--text-xl);
+  color: var(--color-text-muted);
+  max-width: 32ch;
+}
+
+/* ─── DROPZONE ───────────────────────────────────────── */
+.dropzone {
+  border: 1px dashed rgba(232, 228, 220, 0.22);
+  border-radius: 14px;
+  padding: var(--space-16) var(--space-8);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition), transform var(--transition);
+  background: rgba(255, 255, 255, 0.012);
+}
+.dropzone:hover,
+.dropzone:focus-visible {
+  border-color: var(--color-accent);
+  background: rgba(200, 169, 110, 0.04);
+  outline: none;
+}
+.dropzone.dragover {
+  border-color: var(--color-accent);
+  background: rgba(200, 169, 110, 0.08);
+  transform: scale(1.005);
+}
+.drop-icon { color: var(--color-accent); opacity: 0.85; }
+.drop-title { font-family: var(--font-display); font-style: italic; font-size: var(--text-xl); }
+.drop-hint { font-size: var(--text-sm); color: var(--color-text-faint); }
+.drop-link { color: var(--color-accent); }
+
+/* ─── URL BLOCK ──────────────────────────────────────── */
+.url-block {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin-top: calc(var(--space-4) * -1);
+}
+.url-block summary {
+  cursor: pointer;
+  list-style: none;
+  color: var(--color-text-faint);
+  letter-spacing: 0.04em;
+  padding: var(--space-2) 0;
+  transition: color var(--transition);
+}
+.url-block summary:hover { color: var(--color-text-muted); }
+.url-block[open] summary { color: var(--color-text-muted); }
+.url-row { display: flex; gap: var(--space-3); margin-top: var(--space-3); }
+.url-note { font-size: var(--text-xs); color: var(--color-text-faint); margin-top: var(--space-2); }
+
+input[type="url"],
+input[type="text"] {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(232, 228, 220, 0.16);
+  border-radius: 8px;
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  padding: var(--space-3) var(--space-4);
+  transition: border-color var(--transition);
+}
+input[type="url"]:focus,
+input[type="text"]:focus { outline: none; border-color: var(--color-accent); }
+
+/* ─── BUTTONS ────────────────────────────────────────── */
+.btn {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  letter-spacing: 0.04em;
+  padding: var(--space-3) var(--space-6);
+  border-radius: 8px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  transition: background var(--transition), color var(--transition), border-color var(--transition), opacity var(--transition);
+}
+.btn-ghost { border-color: rgba(232, 228, 220, 0.2); color: var(--color-text-muted); }
+.btn-ghost:hover { border-color: var(--color-text-muted); color: var(--color-text); }
+.btn-accent { background: var(--color-accent); color: #1a1306; font-weight: 500; }
+.btn-accent:hover { background: var(--color-accent-hover); }
+.btn-copy {
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-color: rgba(232, 228, 220, 0.18);
+  color: var(--color-text-faint);
+}
+.btn-copy:hover { border-color: var(--color-accent); color: var(--color-accent); }
+.btn-copy.copied { border-color: var(--color-accent); color: var(--color-accent); }
+
+/* ─── STATUS ─────────────────────────────────────────── */
+.status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  letter-spacing: 0.04em;
+}
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(232, 228, 220, 0.2);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── RESULTS ────────────────────────────────────────── */
+.results { display: flex; flex-direction: column; gap: var(--space-8); }
+
+.track-line { display: flex; flex-direction: column; gap: var(--space-3); }
+.track-name {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--text-xl);
+  color: var(--color-text);
+  word-break: break-all;
+}
+audio { width: 100%; filter: grayscale(0.4) opacity(0.9); }
+
+/* ─── FACTS GRID ─────────────────────────────────────── */
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 1px;
+  background: rgba(232, 228, 220, 0.1);
+  border: 1px solid rgba(232, 228, 220, 0.1);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.fact { background: var(--color-bg); padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
+.fact-label {
+  font-size: var(--text-xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+}
+.fact-value {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  line-height: 1;
+  color: var(--color-text);
+}
+.fact-value small { font-size: 0.55em; color: var(--color-text-muted); letter-spacing: 0.02em; }
+
+/* ─── CONTROLS ───────────────────────────────────────── */
+.controls { display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: flex-end; }
+.ctl { display: flex; align-items: center; gap: var(--space-3); font-size: var(--text-sm); color: var(--color-text-muted); }
+.ctl-grow { flex: 1 1 260px; flex-direction: column; align-items: stretch; gap: var(--space-2); }
+.ctl-label { font-size: var(--text-xs); letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-text-faint); }
+.ctl input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--color-accent); }
+
+/* ─── OUTPUTS ────────────────────────────────────────── */
+.output { display: flex; flex-direction: column; gap: var(--space-3); }
+.output-head { display: flex; align-items: center; justify-content: space-between; }
+.output-head h2 {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: var(--text-xl);
+}
+.out-area {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(232, 228, 220, 0.16);
+  border-radius: 10px;
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: 1.6;
+  padding: var(--space-4);
+  resize: vertical;
+  transition: border-color var(--transition);
+}
+.out-area:focus { outline: none; border-color: var(--color-accent); }
+.out-style { color: var(--color-accent-hover); }
+.out-hint { font-size: var(--text-xs); color: var(--color-text-faint); }
+
+.output-actions { display: flex; gap: var(--space-4); flex-wrap: wrap; }
+
+.disclaimer {
+  font-size: var(--text-xs);
+  color: var(--color-text-faint);
+  line-height: 1.6;
+  border-top: 1px solid rgba(232, 228, 220, 0.1);
+  padding-top: var(--space-6);
+}
+
+/* ─── ERROR ──────────────────────────────────────────── */
+.error {
+  border-color: rgba(200, 100, 80, 0.5);
+  color: #e0a090;
+}
+
+@media (max-width: 600px) {
+  .app { padding: var(--space-12) var(--space-4) var(--space-16); }
+  .url-row { flex-direction: column; }
+}
+
+  </style>
+</head>
+<body class="app-body">
+
+  <div class="grain" aria-hidden="true"></div>
+  <div class="vignette" aria-hidden="true"></div>
+
+  <main class="app">
+
+    <header class="app-header">
+      <span class="app-wordmark" aria-label="Infinite Canvas">
+        <svg class="ic-mark" width="24" height="24" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+          <rect x="1" y="1" width="26" height="26" stroke="currentColor" stroke-width="1.2"/>
+          <rect x="5.5" y="5.5" width="17" height="17" stroke="currentColor" stroke-width="0.8" opacity="0.6"/>
+          <rect x="9.5" y="9.5" width="9" height="9" stroke="currentColor" stroke-width="0.5" opacity="0.35"/>
+        </svg>
+        <span class="wordmark-text">INFINITE&nbsp;CANVAS</span>
+      </span>
+      <h1 class="app-title">Suno Prompt Studio</h1>
+      <p class="app-sub">Drop in a track. Get a prompt that describes it &mdash; musically.</p>
+    </header>
+
+    <section class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload an audio file">
+      <input type="file" id="fileInput" accept="audio/*" hidden />
+      <svg class="drop-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M9 18V6l10-2v12" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="6" cy="18" r="3" stroke="currentColor" stroke-width="1.2"/>
+        <circle cx="16" cy="16" r="3" stroke="currentColor" stroke-width="1.2"/>
+      </svg>
+      <p class="drop-title">Drop an audio file here</p>
+      <p class="drop-hint">or <span class="drop-link">browse</span> &nbsp;&middot;&nbsp; mp3, wav, m4a, flac, ogg</p>
+    </section>
+
+    <details class="url-block">
+      <summary>&hellip;or analyze from a link</summary>
+      <div class="url-row">
+        <input type="url" id="urlInput" placeholder="https://example.com/song.mp3" />
+        <button class="btn btn-ghost" id="urlBtn">Fetch</button>
+      </div>
+      <p class="url-note">Works only for direct audio links that allow cross-origin access (CORS). Streaming-service pages (Spotify, YouTube, etc.) can't be read directly.</p>
+    </details>
+
+    <div class="status" id="status" hidden>
+      <div class="spinner" aria-hidden="true"></div>
+      <span id="statusText">Analyzing&hellip;</span>
+    </div>
+
+    <section class="results" id="results" hidden>
+      <div class="track-line">
+        <span class="track-name" id="trackName">track.mp3</span>
+        <audio id="player" controls></audio>
+      </div>
+      <div class="facts" id="facts"></div>
+      <div class="controls">
+        <label class="ctl">
+          <input type="checkbox" id="instrumental" />
+          <span>Instrumental (no vocals)</span>
+        </label>
+        <label class="ctl ctl-grow">
+          <span class="ctl-label">Genre / extra notes (optional)</span>
+          <input type="text" id="extra" placeholder="e.g. dream pop, female vocals, vintage tape" />
+        </label>
+      </div>
+      <div class="output">
+        <div class="output-head">
+          <h2>Suno style</h2>
+          <button class="btn btn-copy" data-target="styleOut">Copy</button>
+        </div>
+        <textarea id="styleOut" class="out-area out-style" rows="3" spellcheck="false"></textarea>
+        <p class="out-hint">Paste into Suno's <em>Style of Music</em> box (Custom mode).</p>
+      </div>
+      <div class="output">
+        <div class="output-head">
+          <h2>Full description</h2>
+          <button class="btn btn-copy" data-target="descOut">Copy</button>
+        </div>
+        <textarea id="descOut" class="out-area" rows="6" spellcheck="false"></textarea>
+      </div>
+      <div class="output-actions">
+        <a class="btn btn-accent" id="openSuno" href="https://suno.com/create" target="_blank" rel="noopener">Open Suno &#8599;</a>
+        <button class="btn btn-ghost" id="resetBtn">Analyze another</button>
+      </div>
+      <p class="disclaimer">
+        Tempo, key, loudness, dynamics and brightness are measured from the audio.
+        Genre, mood and instrumentation are <em>informed guesses</em> derived from those
+        measurements &mdash; tweak the notes above and the text below to taste.
+      </p>
+    </section>
+
+  </main>
+
+  <script>
+/* ============================================================
+   Suno Prompt Studio
+   Decodes an audio file in the browser and derives a musical
+   description (tempo, key, loudness, dynamics, brightness),
+   then assembles a Suno-ready prompt. 100% client-side — the
+   audio never leaves the browser.
+   ============================================================ */
+
+(function () {
+  'use strict';
+
+  // ---- DOM ----
+  const $ = (id) => document.getElementById(id);
+  const dropzone   = $('dropzone');
+  const fileInput  = $('fileInput');
+  const urlInput   = $('urlInput');
+  const urlBtn     = $('urlBtn');
+  const statusEl   = $('status');
+  const statusText = $('statusText');
+  const results    = $('results');
+  const factsEl    = $('facts');
+  const trackName  = $('trackName');
+  const player     = $('player');
+  const styleOut   = $('styleOut');
+  const descOut    = $('descOut');
+  const instrumental = $('instrumental');
+  const extra      = $('extra');
+  const openSuno   = $('openSuno');
+  const resetBtn   = $('resetBtn');
+
+  let lastAnalysis = null;   // cache so controls can re-render the prompt
+
+  /* ========================================================
+     FFT — iterative radix-2 Cooley-Tukey, in place.
+     re/im are Float32Array of length n (power of two).
+     ======================================================== */
+  function fft(re, im) {
+    const n = re.length;
+    for (let i = 1, j = 0; i < n; i++) {
+      let bit = n >> 1;
+      for (; j & bit; bit >>= 1) j ^= bit;
+      j ^= bit;
+      if (i < j) {
+        let t = re[i]; re[i] = re[j]; re[j] = t;
+        t = im[i]; im[i] = im[j]; im[j] = t;
+      }
+    }
+    for (let len = 2; len <= n; len <<= 1) {
+      const ang = -2 * Math.PI / len;
+      const wr = Math.cos(ang), wi = Math.sin(ang);
+      const half = len >> 1;
+      for (let i = 0; i < n; i += len) {
+        let cr = 1, ci = 0;
+        for (let k = 0; k < half; k++) {
+          const a = i + k, b = i + k + half;
+          const vr = re[b] * cr - im[b] * ci;
+          const vi = re[b] * ci + im[b] * cr;
+          re[b] = re[a] - vr; im[b] = im[a] - vi;
+          re[a] += vr;        im[a] += vi;
+          const ncr = cr * wr - ci * wi;
+          ci = cr * wi + ci * wr;
+          cr = ncr;
+        }
+      }
+    }
+  }
+
+  // Hann window cache
+  const hannCache = {};
+  function hann(n) {
+    if (hannCache[n]) return hannCache[n];
+    const w = new Float32Array(n);
+    for (let i = 0; i < n; i++) w[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (n - 1)));
+    hannCache[n] = w;
+    return w;
+  }
+
+  /* ========================================================
+     Mono mix + linear-interpolation resample
+     ======================================================== */
+  function toMono(buffer) {
+    const ch = buffer.numberOfChannels;
+    const len = buffer.length;
+    const out = new Float32Array(len);
+    for (let c = 0; c < ch; c++) {
+      const data = buffer.getChannelData(c);
+      for (let i = 0; i < len; i++) out[i] += data[i];
+    }
+    if (ch > 1) for (let i = 0; i < len; i++) out[i] /= ch;
+    return out;
+  }
+
+  function resample(data, srIn, srOut) {
+    if (srIn === srOut) return data;
+    const ratio = srIn / srOut;
+    const newLen = Math.floor(data.length / ratio);
+    const out = new Float32Array(newLen);
+    for (let i = 0; i < newLen; i++) {
+      const pos = i * ratio;
+      const i0 = Math.floor(pos);
+      const frac = pos - i0;
+      const a = data[i0] || 0;
+      const b = data[i0 + 1] || a;
+      out[i] = a + (b - a) * frac;
+    }
+    return out;
+  }
+
+  /* ========================================================
+     Loudness & dynamics  (frame RMS over original signal)
+     ======================================================== */
+  function loudness(mono, sr) {
+    const win = 2048, hop = 1024;
+    const frames = [];
+    let sumSq = 0;
+    for (let i = 0; i + win <= mono.length; i += hop) {
+      let s = 0;
+      for (let j = 0; j < win; j++) { const v = mono[i + j]; s += v * v; }
+      const rms = Math.sqrt(s / win);
+      frames.push(rms);
+      sumSq += s;
+    }
+    const overall = Math.sqrt(sumSq / (frames.length * win || 1));
+    frames.sort((a, b) => a - b);
+    const pct = (p) => frames[Math.min(frames.length - 1, Math.max(0, Math.floor(p * frames.length)))] || 1e-6;
+    const loud = pct(0.95), quiet = pct(0.10);
+    const toDb = (x) => 20 * Math.log10(Math.max(x, 1e-6));
+    const dynRange = toDb(loud) - toDb(quiet);    // dB
+    return { overallDb: toDb(overall), dynRange };
+  }
+
+  /* ========================================================
+     Spectral centroid (brightness) — averaged, energy-weighted
+     ======================================================== */
+  function brightness(mono, sr) {
+    const N = 2048, hop = 2048;
+    const w = hann(N);
+    const re = new Float32Array(N), im = new Float32Array(N);
+    let num = 0, den = 0;
+    for (let i = 0; i + N <= mono.length; i += hop) {
+      for (let j = 0; j < N; j++) { re[j] = mono[i + j] * w[j]; im[j] = 0; }
+      fft(re, im);
+      let fNum = 0, fDen = 0;
+      for (let k = 1; k < N / 2; k++) {
+        const mag = Math.hypot(re[k], im[k]);
+        const freq = k * sr / N;
+        fNum += freq * mag;
+        fDen += mag;
+      }
+      if (fDen > 0) { num += fNum; den += fDen; }
+    }
+    return den > 0 ? num / den : 0;   // Hz
+  }
+
+  /* ========================================================
+     Chroma + key (Krumhansl-Schmuckler)
+     ======================================================== */
+  const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  const KS_MAJOR = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88];
+  const KS_MINOR = [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17];
+
+  function chroma(mono, sr) {
+    const N = 4096, hop = 2048;
+    const w = hann(N);
+    const re = new Float32Array(N), im = new Float32Array(N);
+    const acc = new Float64Array(12);
+    const fMin = 65, fMax = 2000;   // C2 .. ~B6
+    for (let i = 0; i + N <= mono.length; i += hop) {
+      for (let j = 0; j < N; j++) { re[j] = mono[i + j] * w[j]; im[j] = 0; }
+      fft(re, im);
+      for (let k = 1; k < N / 2; k++) {
+        const freq = k * sr / N;
+        if (freq < fMin || freq > fMax) continue;
+        const mag = Math.hypot(re[k], im[k]);
+        const midi = 69 + 12 * Math.log2(freq / 440);
+        const pc = ((Math.round(midi) % 12) + 12) % 12;
+        acc[pc] += mag;
+      }
+    }
+    return acc;
+  }
+
+  function pearson(a, b) {
+    const n = a.length;
+    let ma = 0, mb = 0;
+    for (let i = 0; i < n; i++) { ma += a[i]; mb += b[i]; }
+    ma /= n; mb /= n;
+    let num = 0, da = 0, db = 0;
+    for (let i = 0; i < n; i++) {
+      const x = a[i] - ma, y = b[i] - mb;
+      num += x * y; da += x * x; db += y * y;
+    }
+    const den = Math.sqrt(da * db);
+    return den === 0 ? 0 : num / den;
+  }
+
+  function detectKey(chromaVec) {
+    let best = { score: -2, tonic: 0, mode: 'major' };
+    for (let t = 0; t < 12; t++) {
+      const majRot = new Array(12), minRot = new Array(12);
+      for (let i = 0; i < 12; i++) {
+        majRot[i] = KS_MAJOR[(i - t + 12) % 12];
+        minRot[i] = KS_MINOR[(i - t + 12) % 12];
+      }
+      const sMaj = pearson(chromaVec, majRot);
+      const sMin = pearson(chromaVec, minRot);
+      if (sMaj > best.score) best = { score: sMaj, tonic: t, mode: 'major' };
+      if (sMin > best.score) best = { score: sMin, tonic: t, mode: 'minor' };
+    }
+    return { name: NOTE_NAMES[best.tonic] + ' ' + best.mode, mode: best.mode, confidence: best.score };
+  }
+
+  /* ========================================================
+     Tempo (BPM) via spectral-flux onset envelope + autocorr
+     ======================================================== */
+  function detectTempo(mono, sr) {
+    const N = 1024, hop = 512;
+    const w = hann(N);
+    const re = new Float32Array(N), im = new Float32Array(N);
+    let prevMag = new Float32Array(N / 2);
+    const flux = [];
+    for (let i = 0; i + N <= mono.length; i += hop) {
+      for (let j = 0; j < N; j++) { re[j] = mono[i + j] * w[j]; im[j] = 0; }
+      fft(re, im);
+      let f = 0;
+      const curMag = new Float32Array(N / 2);
+      for (let k = 0; k < N / 2; k++) {
+        const mag = Math.hypot(re[k], im[k]);
+        curMag[k] = mag;
+        const d = mag - prevMag[k];
+        if (d > 0) f += d;          // half-wave rectified
+      }
+      flux.push(f);
+      prevMag = curMag;
+    }
+    if (flux.length < 8) return { bpm: 0, confidence: 0 };
+
+    // normalize (remove mean)
+    let mean = 0;
+    for (const v of flux) mean += v;
+    mean /= flux.length;
+    const env = flux.map((v) => v - mean);
+
+    const fps = sr / hop;                 // envelope sample rate
+    const minBpm = 60, maxBpm = 180;
+    const minLag = Math.floor(fps * 60 / maxBpm);
+    const maxLag = Math.ceil(fps * 60 / minBpm);
+
+    let bestLag = minLag, bestVal = -Infinity, energy = 0;
+    for (let i = 0; i < env.length; i++) energy += env[i] * env[i];
+    for (let lag = minLag; lag <= maxLag; lag++) {
+      let s = 0;
+      for (let i = 0; i + lag < env.length; i++) s += env[i] * env[i + lag];
+      if (s > bestVal) { bestVal = s; bestLag = lag; }
+    }
+    // parabolic interpolation around the peak for sub-bin accuracy
+    const ac = (lag) => {
+      let s = 0;
+      for (let i = 0; i + lag < env.length; i++) s += env[i] * env[i + lag];
+      return s;
+    };
+    let refined = bestLag;
+    if (bestLag > minLag && bestLag < maxLag) {
+      const y0 = ac(bestLag - 1), y1 = bestVal, y2 = ac(bestLag + 1);
+      const denom = (y0 - 2 * y1 + y2);
+      if (denom !== 0) refined = bestLag + 0.5 * (y0 - y2) / denom;
+    }
+    let bpm = 60 * fps / refined;
+    // fold into a musical range
+    while (bpm < 70) bpm *= 2;
+    while (bpm > 180) bpm /= 2;
+    const confidence = energy > 0 ? bestVal / energy : 0;
+    return { bpm: Math.round(bpm), confidence };
+  }
+
+  /* ========================================================
+     Descriptor mapping  (measurements -> words)
+     ======================================================== */
+  function tempoWord(bpm) {
+    if (bpm < 70) return 'slow, ballad tempo';
+    if (bpm < 90) return 'downtempo, relaxed groove';
+    if (bpm < 108) return 'mid-tempo, steady groove';
+    if (bpm < 124) return 'upbeat';
+    if (bpm < 140) return 'energetic, driving';
+    return 'fast, high-energy';
+  }
+  function brightWord(hz) {
+    if (hz < 1400) return 'warm, dark-toned';
+    if (hz < 2600) return 'balanced';
+    if (hz < 4000) return 'bright';
+    return 'crisp, airy, treble-forward';
+  }
+  function dynWord(db) {
+    if (db < 6) return 'heavily compressed, loud and consistent';
+    if (db < 12) return 'punchy with moderate dynamics';
+    return 'wide, expressive dynamics';
+  }
+  function energyLevel(db, bpm, flux) {
+    // rough 0..1 energy from loudness + tempo
+    const l = Math.min(1, Math.max(0, (db + 30) / 24));
+    const t = Math.min(1, Math.max(0, (bpm - 60) / 100));
+    return 0.6 * l + 0.4 * t;
+  }
+  function moodWords(mode, energy, bright) {
+    const out = [];
+    if (mode === 'minor') out.push(energy > 0.55 ? 'dark, intense' : 'melancholic, introspective');
+    else out.push(energy > 0.55 ? 'uplifting, triumphant' : 'warm, gentle, hopeful');
+    if (bright > 3500 && energy > 0.5) out.push('shimmering');
+    if (energy < 0.35) out.push('atmospheric, spacious');
+    return out;
+  }
+  // Very rough genre lean — clearly a guess, user can override.
+  function genreGuess(bpm, bright, energy, dynRange) {
+    if (energy < 0.32 && bpm < 100) return 'ambient / cinematic';
+    if (bpm < 95 && bright < 2200 && energy < 0.55) return 'lo-fi / chillhop';
+    if (bpm >= 118 && bright > 2400 && energy > 0.55) return 'electronic / dance';
+    if (bpm >= 95 && bpm <= 135 && energy >= 0.45 && energy <= 0.7) return 'pop';
+    if (bpm >= 100 && bright > 2600 && energy > 0.6 && dynRange > 8) return 'rock';
+    if (bright < 2000 && dynRange > 10 && energy < 0.6) return 'acoustic / singer-songwriter';
+    return 'contemporary';
+  }
+
+  /* ========================================================
+     Build the prompt text from the analysis + user controls
+     ======================================================== */
+  function buildPrompt(a) {
+    const inst = instrumental.checked;
+    const notes = (extra.value || '').trim();
+
+    const tempo = tempoWord(a.bpm);
+    const bright = brightWord(a.centroid);
+    const dyn = dynWord(a.dynRange);
+    const energy = a.energy;
+    const moods = moodWords(a.mode, energy, a.centroid);
+    const genre = a.genre;
+
+    const vocalPhrase = inst ? 'instrumental, no vocals' : 'expressive lead vocals';
+
+    // --- Style line (compact, for Suno's Style box) ---
+    const styleParts = [];
+    if (notes) styleParts.push(notes);
+    styleParts.push(genre);
+    styleParts.push(...moods);
+    styleParts.push(tempo + ` (~${a.bpm} BPM)`);
+    styleParts.push('key of ' + a.key);
+    styleParts.push(bright + ' production');
+    styleParts.push(vocalPhrase);
+    const style = dedupe(styleParts).join(', ');
+
+    // --- Full description (prose) ---
+    const desc =
+`A ${genre} track in ${a.key}, around ${a.bpm} BPM — ${tempo}. ` +
+`The mood is ${moods.join(' and ')}. ` +
+`Production is ${bright} with ${dyn}. ` +
+`${inst ? 'Fully instrumental.' : 'Features expressive lead vocals carrying the melody.'}` +
+(notes ? ` Additional direction: ${notes}.` : '') +
+`\n\nSuggested structure:\n[Intro] — establish the ${a.mode === 'minor' ? 'moody' : 'warm'} tone\n[Verse] — ${inst ? 'main theme' : 'lead vocal, restrained backing'}\n[Chorus] — fuller arrangement, lift in energy\n[Bridge] — contrast / breakdown\n[Outro] — resolve and fade`;
+
+    return { style, desc };
+  }
+
+  function dedupe(arr) {
+    const seen = new Set();
+    const out = [];
+    for (const x of arr) {
+      const k = x.toLowerCase();
+      if (!seen.has(k)) { seen.add(k); out.push(x); }
+    }
+    return out;
+  }
+
+  /* ========================================================
+     Orchestration
+     ======================================================== */
+  async function analyze(arrayBuffer, name) {
+    showStatus('Decoding audio…');
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const ctx = new AC();
+    let buffer;
+    try {
+      buffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
+    } catch (e) {
+      ctx.close();
+      throw new Error('Could not decode this file. Try a standard mp3, wav, m4a, ogg or flac.');
+    }
+
+    const duration = buffer.duration;
+    const srOrig = buffer.sampleRate;
+    const monoFull = toMono(buffer);
+
+    // Analyze up to first 4 minutes for speed; representative for tempo/key.
+    const limitSec = Math.min(duration, 240);
+    const monoSlice = monoFull.subarray(0, Math.floor(limitSec * srOrig));
+
+    // Downsample to 22.05k for tempo/chroma/centroid (faster, plenty for analysis)
+    const srA = 22050;
+    await yieldUI();
+    showStatus('Measuring loudness & dynamics…');
+    const loud = loudness(monoSlice, srOrig);
+
+    await yieldUI();
+    const monoLo = resample(monoSlice, srOrig, srA);
+
+    showStatus('Detecting key…');
+    await yieldUI();
+    const chr = chroma(monoLo, srA);
+    const key = detectKey(chr);
+
+    showStatus('Detecting tempo…');
+    await yieldUI();
+    const tempo = detectTempo(monoLo, srA);
+
+    showStatus('Analyzing tone…');
+    await yieldUI();
+    const centroid = brightness(monoLo, srA);
+
+    ctx.close();
+
+    const energy = energyLevel(loud.overallDb, tempo.bpm, 0);
+    const genre = genreGuess(tempo.bpm, centroid, energy, loud.dynRange);
+
+    const analysis = {
+      name,
+      duration,
+      bpm: tempo.bpm,
+      bpmConf: tempo.confidence,
+      key: key.name,
+      mode: key.mode,
+      keyConf: key.confidence,
+      centroid,
+      dynRange: loud.dynRange,
+      overallDb: loud.overallDb,
+      energy,
+      genre
+    };
+    return analysis;
+  }
+
+  function yieldUI() { return new Promise((r) => setTimeout(r, 0)); }
+
+  /* ========================================================
+     Rendering
+     ======================================================== */
+  function render(a) {
+    lastAnalysis = a;
+    trackName.textContent = a.name;
+
+    const mmss = (s) => {
+      const m = Math.floor(s / 60), sec = Math.round(s % 60);
+      return m + ':' + String(sec).padStart(2, '0');
+    };
+    const conf = (c) => c > 0.6 ? 'high' : c > 0.35 ? 'medium' : 'low';
+
+    factsEl.innerHTML = [
+      fact('Length', mmss(a.duration)),
+      fact('Tempo', a.bpm + ' <small>BPM</small>'),
+      fact('Key', a.key),
+      fact('Brightness', Math.round(a.centroid) + ' <small>Hz</small>'),
+      fact('Dynamics', a.dynRange.toFixed(1) + ' <small>dB range</small>'),
+      fact('Energy', Math.round(a.energy * 100) + '<small>%</small>')
+    ].join('');
+
+    renderPrompt();
+    statusEl.hidden = true;
+    results.hidden = false;
+    results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function fact(label, value) {
+    return `<div class="fact"><span class="fact-label">${label}</span><span class="fact-value">${value}</span></div>`;
+  }
+
+  function renderPrompt() {
+    if (!lastAnalysis) return;
+    const { style, desc } = buildPrompt(lastAnalysis);
+    styleOut.value = style;
+    descOut.value = desc;
+  }
+
+  /* ========================================================
+     Status / errors
+     ======================================================== */
+  function showStatus(text, isError) {
+    statusText.textContent = text;
+    statusEl.hidden = false;
+    statusEl.classList.toggle('error', !!isError);
+    statusEl.querySelector('.spinner').style.display = isError ? 'none' : '';
+  }
+
+  async function handleArrayBuffer(buf, name) {
+    results.hidden = true;
+    try {
+      const a = await analyze(buf, name);
+      render(a);
+    } catch (e) {
+      showStatus(e.message || 'Something went wrong analyzing that file.', true);
+    }
+  }
+
+  function handleFile(file) {
+    if (!file) return;
+    trackName.textContent = file.name;
+    player.src = URL.createObjectURL(file);
+    const reader = new FileReader();
+    reader.onload = () => handleArrayBuffer(reader.result, file.name);
+    reader.onerror = () => showStatus('Could not read that file.', true);
+    reader.readAsArrayBuffer(file);
+  }
+
+  async function handleUrl(url) {
+    if (!url) return;
+    showStatus('Fetching audio…');
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error('Fetch failed (' + resp.status + ').');
+      const buf = await resp.arrayBuffer();
+      const name = url.split('/').pop().split('?')[0] || 'audio from link';
+      player.src = url;
+      await handleArrayBuffer(buf, name);
+    } catch (e) {
+      showStatus('Could not fetch that link (likely blocked by CORS, or not a direct audio file).', true);
+    }
+  }
+
+  /* ========================================================
+     Wiring
+     ======================================================== */
+  dropzone.addEventListener('click', () => fileInput.click());
+  dropzone.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); }
+  });
+  fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+
+  ['dragenter', 'dragover'].forEach((ev) =>
+    dropzone.addEventListener(ev, (e) => { e.preventDefault(); dropzone.classList.add('dragover'); }));
+  ['dragleave', 'drop'].forEach((ev) =>
+    dropzone.addEventListener(ev, (e) => { e.preventDefault(); dropzone.classList.remove('dragover'); }));
+  dropzone.addEventListener('drop', (e) => {
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  });
+
+  urlBtn.addEventListener('click', () => handleUrl(urlInput.value.trim()));
+  urlInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleUrl(urlInput.value.trim()); });
+
+  instrumental.addEventListener('change', renderPrompt);
+  let extraTimer;
+  extra.addEventListener('input', () => { clearTimeout(extraTimer); extraTimer = setTimeout(renderPrompt, 250); });
+
+  resetBtn.addEventListener('click', () => {
+    results.hidden = true;
+    fileInput.value = '';
+    lastAnalysis = null;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  // Copy buttons
+  document.querySelectorAll('.btn-copy').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const target = $(btn.dataset.target);
+      try {
+        await navigator.clipboard.writeText(target.value);
+      } catch (e) {
+        target.select();
+        document.execCommand('copy');
+      }
+      const orig = btn.textContent;
+      btn.textContent = 'Copied ✓';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 1400);
+    });
+  });
+
+  // Open Suno: copy the style first so it's ready to paste.
+  openSuno.addEventListener('click', () => {
+    if (styleOut.value) navigator.clipboard && navigator.clipboard.writeText(styleOut.value).catch(() => {});
+  });
+})();
+
+  </script>
+</body>
+</html>
