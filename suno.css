@@ -1,0 +1,253 @@
+/* ─── SUNO PROMPT STUDIO ─────────────────────────────── */
+/* Reuses tokens from style.css (palette, fonts, spacing). */
+
+.app-body {
+  overflow-y: auto;            /* this page scrolls, unlike the landing */
+  overflow-x: hidden;
+}
+
+.app {
+  position: relative;
+  z-index: 20;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: var(--space-16) var(--space-6) var(--space-20);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+/* ─── HEADER ─────────────────────────────────────────── */
+.app-header { text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--space-3); }
+
+.app-wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-4);
+  opacity: 0.8;
+  transition: opacity var(--transition);
+}
+.app-wordmark:hover { opacity: 1; }
+.app-wordmark .wordmark-text { font-size: var(--text-xs); letter-spacing: 0.22em; }
+
+.app-title {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-style: italic;
+  font-size: var(--text-2xl);
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+}
+
+.app-sub {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 300;
+  font-size: var(--text-xl);
+  color: var(--color-text-muted);
+  max-width: 32ch;
+}
+
+/* ─── DROPZONE ───────────────────────────────────────── */
+.dropzone {
+  border: 1px dashed rgba(232, 228, 220, 0.22);
+  border-radius: 14px;
+  padding: var(--space-16) var(--space-8);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition), transform var(--transition);
+  background: rgba(255, 255, 255, 0.012);
+}
+.dropzone:hover,
+.dropzone:focus-visible {
+  border-color: var(--color-accent);
+  background: rgba(200, 169, 110, 0.04);
+  outline: none;
+}
+.dropzone.dragover {
+  border-color: var(--color-accent);
+  background: rgba(200, 169, 110, 0.08);
+  transform: scale(1.005);
+}
+.drop-icon { color: var(--color-accent); opacity: 0.85; }
+.drop-title { font-family: var(--font-display); font-style: italic; font-size: var(--text-xl); }
+.drop-hint { font-size: var(--text-sm); color: var(--color-text-faint); }
+.drop-link { color: var(--color-accent); }
+
+/* ─── URL BLOCK ──────────────────────────────────────── */
+.url-block {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin-top: calc(var(--space-4) * -1);
+}
+.url-block summary {
+  cursor: pointer;
+  list-style: none;
+  color: var(--color-text-faint);
+  letter-spacing: 0.04em;
+  padding: var(--space-2) 0;
+  transition: color var(--transition);
+}
+.url-block summary:hover { color: var(--color-text-muted); }
+.url-block[open] summary { color: var(--color-text-muted); }
+.url-row { display: flex; gap: var(--space-3); margin-top: var(--space-3); }
+.url-note { font-size: var(--text-xs); color: var(--color-text-faint); margin-top: var(--space-2); }
+
+input[type="url"],
+input[type="text"] {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(232, 228, 220, 0.16);
+  border-radius: 8px;
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  padding: var(--space-3) var(--space-4);
+  transition: border-color var(--transition);
+}
+input[type="url"]:focus,
+input[type="text"]:focus { outline: none; border-color: var(--color-accent); }
+
+/* ─── BUTTONS ────────────────────────────────────────── */
+.btn {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  letter-spacing: 0.04em;
+  padding: var(--space-3) var(--space-6);
+  border-radius: 8px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  transition: background var(--transition), color var(--transition), border-color var(--transition), opacity var(--transition);
+}
+.btn-ghost { border-color: rgba(232, 228, 220, 0.2); color: var(--color-text-muted); }
+.btn-ghost:hover { border-color: var(--color-text-muted); color: var(--color-text); }
+.btn-accent { background: var(--color-accent); color: #1a1306; font-weight: 500; }
+.btn-accent:hover { background: var(--color-accent-hover); }
+.btn-copy {
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-color: rgba(232, 228, 220, 0.18);
+  color: var(--color-text-faint);
+}
+.btn-copy:hover { border-color: var(--color-accent); color: var(--color-accent); }
+.btn-copy.copied { border-color: var(--color-accent); color: var(--color-accent); }
+
+/* ─── STATUS ─────────────────────────────────────────── */
+.status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  letter-spacing: 0.04em;
+}
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(232, 228, 220, 0.2);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── RESULTS ────────────────────────────────────────── */
+.results { display: flex; flex-direction: column; gap: var(--space-8); }
+
+.track-line { display: flex; flex-direction: column; gap: var(--space-3); }
+.track-name {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--text-xl);
+  color: var(--color-text);
+  word-break: break-all;
+}
+audio { width: 100%; filter: grayscale(0.4) opacity(0.9); }
+
+/* ─── FACTS GRID ─────────────────────────────────────── */
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 1px;
+  background: rgba(232, 228, 220, 0.1);
+  border: 1px solid rgba(232, 228, 220, 0.1);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.fact { background: var(--color-bg); padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
+.fact-label {
+  font-size: var(--text-xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+}
+.fact-value {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  line-height: 1;
+  color: var(--color-text);
+}
+.fact-value small { font-size: 0.55em; color: var(--color-text-muted); letter-spacing: 0.02em; }
+
+/* ─── CONTROLS ───────────────────────────────────────── */
+.controls { display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: flex-end; }
+.ctl { display: flex; align-items: center; gap: var(--space-3); font-size: var(--text-sm); color: var(--color-text-muted); }
+.ctl-grow { flex: 1 1 260px; flex-direction: column; align-items: stretch; gap: var(--space-2); }
+.ctl-label { font-size: var(--text-xs); letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-text-faint); }
+.ctl input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--color-accent); }
+
+/* ─── OUTPUTS ────────────────────────────────────────── */
+.output { display: flex; flex-direction: column; gap: var(--space-3); }
+.output-head { display: flex; align-items: center; justify-content: space-between; }
+.output-head h2 {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: var(--text-xl);
+}
+.out-area {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(232, 228, 220, 0.16);
+  border-radius: 10px;
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: 1.6;
+  padding: var(--space-4);
+  resize: vertical;
+  transition: border-color var(--transition);
+}
+.out-area:focus { outline: none; border-color: var(--color-accent); }
+.out-style { color: var(--color-accent-hover); }
+.out-hint { font-size: var(--text-xs); color: var(--color-text-faint); }
+
+.output-actions { display: flex; gap: var(--space-4); flex-wrap: wrap; }
+
+.disclaimer {
+  font-size: var(--text-xs);
+  color: var(--color-text-faint);
+  line-height: 1.6;
+  border-top: 1px solid rgba(232, 228, 220, 0.1);
+  padding-top: var(--space-6);
+}
+
+/* ─── ERROR ──────────────────────────────────────────── */
+.error {
+  border-color: rgba(200, 100, 80, 0.5);
+  color: #e0a090;
+}
+
+@media (max-width: 600px) {
+  .app { padding: var(--space-12) var(--space-4) var(--space-16); }
+  .url-row { flex-direction: column; }
+}

@@ -189,6 +189,14 @@ button { cursor: pointer; background: none; border: none; font: inherit; color: 
   color: var(--color-text-muted);
 }
 
+/* ─── TOOLS ──────────────────────────────────────────── */
+.tools {
+  margin-top: calc(var(--space-8) * -1);
+  margin-bottom: var(--space-4);
+  opacity: 0;
+  animation: fade-up 1.2s 1.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 /* ─── CONTACT ────────────────────────────────────────── */
 .contact {
   position: fixed;
@@ -247,7 +255,7 @@ button { cursor: pointer; background: none; border: none; font: inherit; color: 
     transition-duration: 0.01ms !important;
   }
   .grain { animation: none; }
-  .wordmark, .thesis-line, .mission, .founder, .contact {
+  .wordmark, .thesis-line, .mission, .founder, .contact, .tools {
     opacity: 1;
     transform: none;
   }
