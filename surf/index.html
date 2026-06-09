@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Surf Spot Finder — seafloor + swell explorer</title>
+<meta name="description" content="Find undiscovered surf spots by combining ocean-floor maps with live swell and wind data." />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<style>
+  :root{
+    --bg:#0b1220; --panel:rgba(13,22,38,0.92); --border:rgba(255,255,255,0.12);
+    --text:#eef2f7; --muted:#9fb0c3; --accent:#38bdf8;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg);color:var(--text);overflow:hidden;-webkit-font-smoothing:antialiased;}
+  #map{position:absolute;inset:0;z-index:1;background:#0b1220;}
+
+  /* top bar */
+  .topbar{position:absolute;top:0;left:0;right:0;z-index:1000;display:flex;gap:8px;
+          padding:10px;align-items:center;flex-wrap:wrap;
+          background:linear-gradient(180deg,rgba(8,13,24,0.92),rgba(8,13,24,0));pointer-events:none;}
+  .topbar > *{pointer-events:auto;}
+  .brand{font-weight:700;letter-spacing:-0.01em;font-size:0.95rem;white-space:nowrap;padding-right:4px;}
+  .brand small{display:block;color:var(--muted);font-weight:400;font-size:0.7rem;}
+  form.search{display:flex;gap:6px;flex:1;min-width:180px;max-width:360px;}
+  input[type=text]{flex:1;padding:9px 12px;border-radius:10px;border:1px solid var(--border);
+                   background:rgba(13,22,38,0.92);color:var(--text);outline:none;font-size:0.9rem;}
+  input::placeholder{color:var(--muted);}
+  input:focus{border-color:var(--accent);}
+  button{border:1px solid var(--border);background:rgba(30,45,70,0.92);color:var(--text);
+         border-radius:10px;padding:9px 12px;font-size:0.85rem;cursor:pointer;white-space:nowrap;transition:background .15s;}
+  button:hover{background:rgba(50,72,108,0.95);}
+  button.primary{background:var(--accent);color:#06283d;border-color:var(--accent);font-weight:600;}
+  button:disabled{opacity:0.5;cursor:default;}
+
+  /* result panel */
+  .panel{position:absolute;top:64px;right:10px;z-index:1000;width:320px;max-width:calc(100vw - 20px);
+         background:var(--panel);border:1px solid var(--border);border-radius:16px;
+         backdrop-filter:blur(8px);padding:16px;max-height:calc(100vh - 84px);overflow-y:auto;
+         box-shadow:0 10px 40px rgba(0,0,0,0.4);}
+  .panel.hidden{display:none;}
+  .panel h3{font-size:1rem;margin-bottom:2px;}
+  .panel .sub{color:var(--muted);font-size:0.78rem;margin-bottom:12px;}
+  .score-big{display:flex;align-items:baseline;gap:8px;margin-bottom:12px;}
+  .score-big .n{font-size:2.6rem;font-weight:800;line-height:1;}
+  .score-big .lab{font-size:0.85rem;color:var(--muted);}
+  .bar{height:8px;border-radius:6px;background:rgba(255,255,255,0.1);overflow:hidden;margin:4px 0 10px;}
+  .bar > span{display:block;height:100%;border-radius:6px;}
+  .metric{font-size:0.8rem;color:var(--muted);margin-bottom:2px;display:flex;justify-content:space-between;}
+  .metric b{color:var(--text);font-weight:600;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;margin:6px 0 12px;}
+  .compass{display:inline-block;transform-origin:center;font-size:1.1rem;}
+  .note{font-size:0.72rem;color:var(--muted);line-height:1.5;border-top:1px solid var(--border);padding-top:10px;margin-top:8px;}
+  .candlist{list-style:none;margin-top:6px;}
+  .candlist li{display:flex;justify-content:space-between;gap:8px;padding:7px 8px;border-radius:8px;cursor:pointer;font-size:0.82rem;}
+  .candlist li:hover{background:rgba(255,255,255,0.06);}
+  .candlist .pill{font-weight:700;border-radius:6px;padding:1px 7px;color:#06283d;}
+
+  /* hint + legend */
+  .hint{position:absolute;left:10px;bottom:10px;z-index:1000;background:var(--panel);
+        border:1px solid var(--border);border-radius:12px;padding:10px 14px;font-size:0.8rem;
+        color:var(--muted);max-width:300px;}
+  .legend{position:absolute;right:10px;bottom:10px;z-index:1000;background:var(--panel);
+          border:1px solid var(--border);border-radius:12px;padding:8px 12px;font-size:0.72rem;color:var(--muted);}
+  .legend .row{display:flex;align-items:center;gap:6px;margin-top:3px;}
+  .legend .sw{width:14px;height:14px;border-radius:4px;display:inline-block;}
+  .spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.3);
+           border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .leaflet-container{background:#0b1220;}
+  a{color:var(--accent);}
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div class="topbar">
+  <div class="brand">🌊 Surf Spot Finder<small>seafloor + live swell</small></div>
+  <form class="search" id="searchForm">
+    <input id="cityInput" type="text" placeholder="Jump to a coast… (e.g. “Nazaré”, “Baja”)" autocomplete="off" />
+    <button type="submit">Go</button>
+  </form>
+  <button id="scanBtn" class="primary">⌖ Scan this view</button>
+  <button id="clearBtn" title="Clear markers">Clear</button>
+</div>
+
+<div class="panel hidden" id="panel"></div>
+
+<div class="hint" id="hint">
+  <b>Tap any coastline</b> to read live swell + wind and a surf-potential score —
+  or hit <b>Scan this view</b> to rank every coastal cell on screen.
+</div>
+
+<div class="legend">
+  Surf potential
+  <div class="row"><span class="sw" style="background:#22c55e"></span> high (70+)</div>
+  <div class="row"><span class="sw" style="background:#eab308"></span> medium (40–69)</div>
+  <div class="row"><span class="sw" style="background:#ef4444"></span> low (&lt;40)</div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+/* ============================================================
+   Surf Spot Finder
+   Data: Open-Meteo Marine + Forecast APIs (free, no key)
+   Maps: ESRI Ocean basemap + GEBCO global bathymetry (WMS)
+   ============================================================ */
+
+const MARINE = "https://marine-api.open-meteo.com/v1/marine";
+const FORECAST = "https://api.open-meteo.com/v1/forecast";
+const GEOCODE = "https://geocoding-api.open-meteo.com/v1/search";
+
+const DIRS = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
+const compass = deg => DIRS[Math.round(((deg%360)/22.5)) % 16];
+
+const d2r = d => d*Math.PI/180, r2d = r => r*180/Math.PI;
+const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
+// smallest signed angular difference a-b in degrees (-180..180)
+function angDiff(a,b){ let x=((a-b)%360+540)%360-180; return x; }
+
+/* ---------- Map setup ---------- */
+const map = L.map("map",{zoomControl:true,worldCopyJump:true}).setView([33.6,-118.2],6);
+L.control.scale({imperial:true,metric:true}).addTo(map);
+
+const esriOcean = L.tileLayer(
+  "https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}",
+  {maxZoom:13, attribution:"Esri Ocean"}).addTo(map);
+const esriLabels = L.tileLayer(
+  "https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}",
+  {maxZoom:13}).addTo(map);
+const gebco = L.tileLayer.wms("https://wms.gebco.net/mapserv?",
+  {layers:"GEBCO_LATEST", format:"image/png", version:"1.3.0",
+   attribution:"GEBCO bathymetry", opacity:0.75});
+const esriImagery = L.tileLayer(
+  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+  {maxZoom:18});
+
+L.control.layers(
+  {"Ocean basemap (bathymetry)":esriOcean, "Satellite imagery":esriImagery},
+  {"GEBCO seafloor depth":gebco, "Place labels":esriLabels},
+  {collapsed:true}
+).addTo(map);
+
+/* ---------- HTTP helper ---------- */
+async function getJSON(url){
+  const r = await fetch(url);
+  if(!r.ok) throw new Error("HTTP "+r.status);
+  return r.json();
+}
+// Open-Meteo accepts comma-separated coordinate lists and returns an array.
+function coordList(points){
+  return "latitude="+points.map(p=>p[0].toFixed(4)).join(",")
+       + "&longitude="+points.map(p=>p[1].toFixed(4)).join(",");
+}
+function asArray(res){ return Array.isArray(res) ? res : [res]; }
+
+async function fetchForecast(points){
+  const url = `${FORECAST}?${coordList(points)}&current=wind_speed_10m,wind_direction_10m&wind_speed_unit=kn`;
+  return asArray(await getJSON(url));
+}
+async function fetchMarine(points){
+  const vars = "wave_height,wave_period,wave_direction,swell_wave_height,swell_wave_period,swell_wave_direction,wind_wave_height";
+  const url = `${MARINE}?${coordList(points)}&current=${vars}`;
+  return asArray(await getJSON(url));
+}
+
+/* ---------- Geometry ---------- */
+// offset a lat/lon by a bearing (deg) and distance (deg of latitude)
+function offset(lat,lon,bearingDeg,distDeg){
+  const b = d2r(bearingDeg);
+  const dLat = distDeg*Math.cos(b);
+  const dLon = distDeg*Math.sin(b)/Math.cos(d2r(lat));
+  return [lat+dLat, lon+dLon];
+}
+// offshore normal = mean direction toward the sea, from a set of {bearing,isSea}
+function offshoreNormal(samples){
+  let e=0,n=0,sea=0;
+  for(const s of samples){ if(s.isSea){ e+=Math.sin(d2r(s.bearing)); n+=Math.cos(d2r(s.bearing)); sea++; } }
+  const mag = Math.hypot(e,n);
+  return {bearing:(r2d(Math.atan2(e,n))+360)%360, mag, seaCount:sea, total:samples.length};
+}
+
+/* ---------- Scoring ----------
+   Inputs: swell height (m), period (s), direction FROM (deg),
+           wind speed (kn), wind direction FROM (deg), offshore-normal bearing (deg).
+   Surf power ~ H^2 * T. Swell must arrive from the open-ocean side (exposure).
+   Offshore wind grooms the face; onshore wind ruins it.                          */
+function scoreSpot(o){
+  const power = o.swellH*o.swellH*o.swellT;           // crude energy proxy
+  const energy = clamp(power/55, 0, 1);
+  // exposure: best when swell comes FROM the offshore-normal direction (open sea)
+  const expoCos = Math.cos(d2r(angDiff(o.swellDir, o.offshore)));
+  const exposure = clamp(expoCos, 0, 1);
+  // wind: offshore wind blows FROM (offshore+180). +1 offshore, -1 onshore.
+  const windIdeal = (o.offshore+180)%360;
+  const windCos = Math.cos(d2r(angDiff(o.windDir, windIdeal)));
+  const windAlign = 0.5 + 0.5*windCos;                // 0 onshore .. 1 offshore
+  const strength = clamp(o.windSpd/22, 0, 1);          // light wind is forgiving
+  const windFactor = (1-strength)*0.82 + strength*windAlign;
+  const base = energy*(0.30 + 0.70*exposure);
+  const score = Math.round(100*base*(0.55 + 0.45*windFactor));
+  return {score:clamp(score,0,100), energy, exposure, windAlign, windFactor, windIdeal};
+}
+const scoreColor = s => s>=70 ? "#22c55e" : s>=40 ? "#eab308" : "#ef4444";
+
+/* ---------- UI ---------- */
+const panel = document.getElementById("panel");
+const hint = document.getElementById("hint");
+let markers = [];
+function addMarker(m){ markers.push(m); m.addTo(map); }
+function clearMarkers(){ markers.forEach(m=>map.removeLayer(m)); markers=[]; }
+
+function bar(label,val,color){
+  return `<div class="metric"><span>${label}</span><b>${Math.round(val*100)}%</b></div>
+          <div class="bar"><span style="width:${Math.round(val*100)}%;background:${color||'#38bdf8'}"></span></div>`;
+}
+
+function showSpot(name, lat, lon, data){
+  const {marine, wind, normal, scored} = data;
+  const sc = scored;
+  panel.classList.remove("hidden");
+  hint.style.display="none";
+  panel.innerHTML = `
+    <h3>${name||"Selected spot"}</h3>
+    <div class="sub">${lat.toFixed(3)}, ${lon.toFixed(3)}</div>
+    <div class="score-big">
+      <span class="n" style="color:${scoreColor(sc.score)}">${sc.score}</span>
+      <span class="lab">/ 100 surf potential</span>
+    </div>
+    ${bar("Swell energy", sc.energy, "#38bdf8")}
+    ${bar("Swell exposure to this coast", sc.exposure, "#a78bfa")}
+    ${bar("Wind quality", sc.windFactor, "#34d399")}
+    <div class="grid2">
+      <div class="metric"><span>Swell</span><b>${marine.swell_wave_height?.toFixed(1) ?? "–"} m</b></div>
+      <div class="metric"><span>Period</span><b>${marine.swell_wave_period?.toFixed(0) ?? "–"} s</b></div>
+      <div class="metric"><span>Swell dir</span><b>${marine.swell_wave_direction!=null?compass(marine.swell_wave_direction)+" ("+Math.round(marine.swell_wave_direction)+"°)":"–"}</b></div>
+      <div class="metric"><span>Sea height</span><b>${marine.wave_height?.toFixed(1) ?? "–"} m</b></div>
+      <div class="metric"><span>Wind</span><b>${wind? Math.round(wind.wind_speed_10m)+" kn" : "–"}</b></div>
+      <div class="metric"><span>Wind dir</span><b>${wind? compass(wind.wind_direction_10m)+" ("+Math.round(wind.wind_direction_10m)+"°)" : "–"}</b></div>
+      <div class="metric"><span>Coast faces</span><b>${compass(normal.bearing)} (${Math.round(normal.bearing)}°)</b></div>
+      <div class="metric"><span>Wind here</span><b>${windLabel(wind, normal.bearing)}</b></div>
+    </div>
+    <div class="note">
+      Score = swell energy (H²·period) × how directly that swell hits this coast × wind quality
+      (offshore grooms, onshore ruins). Coast orientation is inferred from the surrounding seafloor.
+      <br><br><b>Not modelled:</b> tide, local sandbar/reef detail, and wave-model resolution is coarse
+      (~5–10&nbsp;km) — treat this as a lead to investigate, not a guarantee.
+    </div>`;
+}
+function windLabel(wind, normal){
+  if(!wind) return "–";
+  const ideal=(normal+180)%360;
+  const c=Math.cos(d2r(angDiff(wind.wind_direction_10m,ideal)));
+  if(wind.wind_speed_10m<5) return "light / glassy";
+  return c>0.4?"offshore 👍":c<-0.4?"onshore 👎":"cross-shore";
+}
+
+function setBusy(b){
+  document.getElementById("scanBtn").disabled=b;
+  document.getElementById("scanBtn").innerHTML = b ? '<span class="spinner"></span> Scanning…' : "⌖ Scan this view";
+}
+
+/* ---------- Single point: explore ---------- */
+async function explorePoint(lat, lon, name){
+  panel.classList.remove("hidden");
+  hint.style.display="none";
+  panel.innerHTML = `<h3>Reading conditions…</h3><div class="sub">${lat.toFixed(3)}, ${lon.toFixed(3)} <span class="spinner"></span></div>`;
+  try{
+    const R = 0.09; // ~10 km sampling radius
+    const ring = [];
+    for(let b=0;b<360;b+=45) ring.push({bearing:b, ll:offset(lat,lon,b,R)});
+    const points = [[lat,lon], ...ring.map(r=>r.ll)];
+    const [fc, mar] = await Promise.all([ fetchForecast(points), fetchMarine([[lat,lon]]) ]);
+
+    const centerEl = fc[0];
+    // sea detection via model elevation: <= 0 ≈ water
+    const isSea = el => el!=null && el.elevation!=null && el.elevation<=0;
+    if(!isSea(centerEl)){
+      panel.innerHTML = `<h3>That's on land 🏝️</h3>
+        <div class="note">Tap right on the water next to a coastline. The score needs an ocean point that
+        has land nearby (that's what shapes a breaking wave).</div>`;
+      return;
+    }
+    const samples = ring.map((r,i)=>({bearing:r.bearing, isSea:isSea(fc[i+1])}));
+    const normal = offshoreNormal(samples);
+    if(normal.seaCount===0){ /* enclosed */ }
+    if(normal.seaCount===samples.length){
+      panel.innerHTML = `<h3>Open ocean 🌊</h3>
+        <div class="note">Every direction here is deep water — no coastline to shape a wave.
+        Tap closer to shore (a point, headland, or reef edge).</div>`;
+      return;
+    }
+    const m = mar[0].current;
+    const w = centerEl.current;
+    const scored = scoreSpot({
+      swellH:m.swell_wave_height||0, swellT:m.swell_wave_period||0,
+      swellDir:m.swell_wave_direction||0, offshore:normal.bearing,
+      windSpd:w.wind_speed_10m||0, windDir:w.wind_direction_10m||0
+    });
+    showSpot(name, lat, lon, {marine:m, wind:w, normal, scored});
+
+    const mk = L.circleMarker([lat,lon],{radius:9,color:"#fff",weight:2,
+      fillColor:scoreColor(scored.score),fillOpacity:0.9}).bindTooltip(`${scored.score}`,{permanent:false});
+    addMarker(mk);
+  }catch(e){
+    panel.innerHTML = `<h3>Couldn't read that spot</h3><div class="note">${e.message}. The marine model
+      may not cover this exact point — try a spot a little further offshore, or zoom in and retry.</div>`;
+  }
+}
+
+map.on("click", e => explorePoint(e.latlng.lat, e.latlng.lng));
+
+/* ---------- Scan the visible view ---------- */
+async function scanView(){
+  setBusy(true);
+  clearMarkers();
+  panel.classList.remove("hidden"); hint.style.display="none";
+  panel.innerHTML = `<h3>Scanning coastline…</h3><div class="sub">sampling the seafloor + swell <span class="spinner"></span></div>`;
+  try{
+    const b = map.getBounds();
+    const COLS=22, ROWS=15;
+    const latStep=(b.getNorth()-b.getSouth())/ROWS;
+    const lonStep=(b.getEast()-b.getWest())/COLS;
+    // build grid
+    const grid=[]; // grid[r][c] = {lat,lon}
+    const flat=[];
+    for(let r=0;r<=ROWS;r++){
+      grid[r]=[];
+      for(let c=0;c<=COLS;c++){
+        const lat=b.getSouth()+r*latStep, lon=b.getWest()+c*lonStep;
+        grid[r][c]={lat,lon,idx:flat.length};
+        flat.push([lat,lon]);
+      }
+    }
+    // forecast (elevation + wind) for all cells, chunked
+    const fc = await chunkedFetch(flat, fetchForecast, 100);
+    const isSea = i => fc[i] && fc[i].elevation!=null && fc[i].elevation<=0;
+
+    // coastal water cells = sea cell with >=1 land neighbour (4-neighbourhood)
+    const coastal=[];
+    for(let r=0;r<=ROWS;r++) for(let c=0;c<=COLS;c++){
+      const cell=grid[r][c];
+      if(!isSea(cell.idx)) continue;
+      const nb=[[r-1,c],[r+1,c],[r,c-1],[r,c+1],[r-1,c-1],[r-1,c+1],[r+1,c-1],[r+1,c+1]];
+      let land=0; const seaSamples=[];
+      for(const [rr,cc] of nb){
+        if(rr<0||cc<0||rr>ROWS||cc>COLS) continue;
+        const ni=grid[rr][cc].idx;
+        const sea=isSea(ni);
+        if(!sea) land++;
+        // bearing from cell to this neighbour (east = +col, north = +row since row 0 is south)
+        const bearing=(r2d(Math.atan2(cc-c, rr-r))+360)%360;
+        seaSamples.push({bearing,isSea:sea});
+      }
+      if(land>=1){
+        const normal=offshoreNormal(seaSamples);
+        coastal.push({cell, normal});
+      }
+    }
+    if(!coastal.length){
+      panel.innerHTML = `<h3>No coastline in view</h3><div class="note">Zoom to a stretch of coast (you want
+        both water and land on screen), then scan again.</div>`;
+      setBusy(false); return;
+    }
+    // limit how many we request swell for (rate-friendly)
+    const MAXP=80;
+    const picks = coastal.slice(0, MAXP);
+    const mar = await chunkedFetch(picks.map(p=>[p.cell.lat,p.cell.lon]), fetchMarine, 80);
+
+    const results=[];
+    picks.forEach((p,i)=>{
+      const m=mar[i] && mar[i].current; const w=fc[p.cell.idx].current;
+      if(!m || m.swell_wave_height==null) return;
+      const sc=scoreSpot({swellH:m.swell_wave_height||0,swellT:m.swell_wave_period||0,
+        swellDir:m.swell_wave_direction||0,offshore:p.normal.bearing,
+        windSpd:w?.wind_speed_10m||0,windDir:w?.wind_direction_10m||0});
+      results.push({lat:p.cell.lat,lon:p.cell.lon,sc,m,w,normal:p.normal});
+    });
+    results.sort((a,b)=>b.sc.score-a.sc.score);
+
+    results.forEach((res,i)=>{
+      const top = i<3;
+      const mk=L.circleMarker([res.lat,res.lon],{
+        radius: top?10:7, weight: top?3:1.5, color: top?"#fff":"rgba(255,255,255,0.6)",
+        fillColor:scoreColor(res.sc.score), fillOpacity:0.85});
+      mk.on("click",()=>showSpot(`Candidate (${res.sc.score})`,res.lat,res.lon,
+        {marine:res.m,wind:res.w,normal:res.normal,scored:res.sc}));
+      addMarker(mk);
+    });
+
+    renderCandidates(results);
+  }catch(e){
+    panel.innerHTML = `<h3>Scan failed</h3><div class="note">${e.message}. The free API has rate limits —
+      wait a moment, zoom to a smaller stretch of coast, and try again.</div>`;
+  }
+  setBusy(false);
+}
+
+async function chunkedFetch(points, fn, size){
+  const out=[];
+  for(let i=0;i<points.length;i+=size){
+    const part=await fn(points.slice(i,i+size));
+    out.push(...part);
+    if(i+size<points.length) await new Promise(r=>setTimeout(r,250));
+  }
+  return out;
+}
+
+function renderCandidates(results){
+  const top=results.slice(0,12);
+  panel.innerHTML = `
+    <h3>Top candidates <span class="sub" style="display:inline">(${results.length} scored)</span></h3>
+    <div class="sub">Ranked by surf potential in this view. Tap one to fly there.</div>
+    <ul class="candlist">
+      ${top.map(r=>`<li data-lat="${r.lat}" data-lon="${r.lon}">
+        <span>${r.lat.toFixed(2)}, ${r.lon.toFixed(2)} · ${r.m.swell_wave_height?.toFixed(1)??'–'}m@${r.m.swell_wave_period?.toFixed(0)??'–'}s</span>
+        <span class="pill" style="background:${scoreColor(r.sc.score)}">${r.sc.score}</span></li>`).join("")}
+    </ul>
+    <div class="note">These are the strongest raw setups on screen — many will be known breaks, but the
+      quiet high-scorers off the beaten path are your leads. Cross-check tide and access before you trust it.</div>`;
+  panel.querySelectorAll("li").forEach(li=>li.addEventListener("click",()=>{
+    const lat=+li.dataset.lat, lon=+li.dataset.lon;
+    map.flyTo([lat,lon],11);
+    explorePoint(lat,lon,"Candidate");
+  }));
+}
+
+document.getElementById("scanBtn").addEventListener("click", scanView);
+document.getElementById("clearBtn").addEventListener("click", ()=>{ clearMarkers(); panel.classList.add("hidden"); hint.style.display="block"; });
+
+/* ---------- Search ---------- */
+document.getElementById("searchForm").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const q=document.getElementById("cityInput").value.trim();
+  if(!q) return;
+  try{
+    const data=await getJSON(`${GEOCODE}?name=${encodeURIComponent(q)}&count=1&language=en&format=json`);
+    if(!data.results||!data.results.length) return alert(`Couldn't find “${q}”.`);
+    const r=data.results[0];
+    map.flyTo([r.latitude,r.longitude],9);
+  }catch(err){ alert("Search failed, try again."); }
+});
+</script>
+</body>
+</html>
