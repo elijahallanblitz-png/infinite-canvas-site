@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Time Warp — every day is a week</title>
+<meta name="description" content="A live accelerated clock. Pick a moment, pick a rate (default: every day = a week, 7×), and watch how much subjective time has elapsed." />
+<meta name="theme-color" content="#0d0d0d" />
+
+<!-- Add-to-Home-Screen / standalone app behavior on iOS -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Time Warp" />
+
+<!-- App icon (inline SVG -> data URI): a clock with a gold spark, on-brand -->
+<link rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%230d0d0d'/><circle cx='90' cy='90' r='52' fill='none' stroke='%23e8e6e1' stroke-width='5'/><path d='M90 90 L90 52 M90 90 L120 104' stroke='%23d4a843' stroke-width='6' stroke-linecap='round'/><circle cx='90' cy='90' r='5' fill='%23d4a843'/></svg>" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' fill='%230d0d0d'/><circle cx='32' cy='32' r='18' fill='none' stroke='%23e8e6e1' stroke-width='2'/><path d='M32 32 L32 19 M32 32 L42 38' stroke='%23d4a843' stroke-width='2.4' stroke-linecap='round'/></svg>" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&display=swap" rel="stylesheet" />
+
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --bg-card: rgba(255, 255, 255, 0.045);
+    --bg-card-strong: rgba(255, 255, 255, 0.09);
+    --border: rgba(255, 255, 255, 0.12);
+    --text: #e8e6e1;
+    --muted: #9a958c;
+    --gold: #d4a843;
+    --teal: #4f98a3;
+    --serif: "Cinzel", Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: var(--sans);
+    background:
+      radial-gradient(1100px 620px at 50% -12%, #1a1814 0%, var(--bg) 58%),
+      var(--bg);
+    color: var(--text);
+    min-height: 100%;
+    padding:
+      calc(env(safe-area-inset-top) + 26px) 18px
+      calc(env(safe-area-inset-bottom) + 40px);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .wrap { max-width: 560px; margin: 0 auto; }
+
+  header { text-align: center; margin-bottom: 26px; }
+  .brand {
+    display: inline-flex; align-items: center; gap: 9px;
+    font-family: var(--serif); letter-spacing: 0.04em;
+    font-size: 1.05rem; color: var(--text);
+  }
+  .brand svg { width: 24px; height: 24px; }
+  .tagline { color: var(--muted); font-size: 0.82rem; margin-top: 8px; }
+
+  /* ---- Primary live display ---- */
+  .display {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    padding: 30px 22px 26px;
+    text-align: center;
+    margin-bottom: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .display::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: radial-gradient(380px 160px at 50% 0%, rgba(212,168,67,0.10), transparent 70%);
+    pointer-events: none;
+  }
+  .display .label {
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.14em;
+    color: var(--muted); margin-bottom: 16px;
+  }
+  .scaled {
+    font-family: var(--serif);
+    font-size: clamp(2.1rem, 11vw, 3.2rem);
+    line-height: 1.05; font-weight: 500;
+    color: var(--text);
+    display: flex; flex-wrap: wrap; justify-content: center;
+    gap: 4px 16px;
+  }
+  .scaled .unit { display: inline-flex; align-items: baseline; gap: 5px; }
+  .scaled .num { color: var(--gold); font-variant-numeric: tabular-nums; }
+  .scaled .suf {
+    font-family: var(--sans); font-size: 0.32em; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted);
+    align-self: center;
+  }
+  .seconds {
+    margin-top: 14px; font-family: var(--sans);
+    font-size: 0.9rem; color: var(--teal); font-variant-numeric: tabular-nums;
+  }
+  .real-line { margin-top: 10px; font-size: 0.8rem; color: var(--muted); }
+
+  /* ---- Cards ---- */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 18px;
+    margin-bottom: 14px;
+  }
+  .card h2 {
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--muted); font-weight: 600; margin-bottom: 14px;
+  }
+
+  /* ---- Rate chips ---- */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    border: 1px solid var(--border); background: var(--bg-card-strong);
+    color: var(--text); border-radius: 999px; padding: 9px 14px;
+    font-size: 0.85rem; cursor: pointer; transition: all 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .chip:hover { background: rgba(255,255,255,0.16); }
+  .chip.active {
+    background: var(--gold); color: #1a1408; border-color: var(--gold); font-weight: 600;
+  }
+  .custom-rate {
+    margin-top: 14px; display: none; align-items: center; gap: 8px;
+    color: var(--muted); font-size: 0.9rem; flex-wrap: wrap;
+  }
+  .custom-rate.show { display: flex; }
+
+  input[type="number"], input[type="datetime-local"], select {
+    background: var(--bg-card-strong); border: 1px solid var(--border);
+    color: var(--text); border-radius: 11px; padding: 10px 12px;
+    font-size: 0.95rem; outline: none; font-family: var(--sans);
+  }
+  input[type="number"] { width: 90px; }
+  input:focus, select:focus { border-color: var(--gold); }
+  input[type="datetime-local"] { width: 100%; color-scheme: dark; }
+
+  .rate-note {
+    margin-top: 14px; font-size: 0.85rem; color: var(--muted); line-height: 1.5;
+  }
+  .rate-note b { color: var(--text); font-weight: 600; }
+
+  /* ---- Anchor ---- */
+  .anchor-row { display: flex; gap: 8px; align-items: stretch; }
+  .anchor-row input { flex: 1; }
+  button.btn {
+    border: 1px solid var(--border); background: var(--bg-card-strong);
+    color: var(--text); border-radius: 11px; padding: 10px 14px;
+    font-size: 0.88rem; cursor: pointer; transition: background 0.15s;
+    white-space: nowrap; -webkit-tap-highlight-color: transparent;
+  }
+  button.btn:hover { background: rgba(255,255,255,0.16); }
+  button.btn.gold { color: var(--gold); }
+  .anchor-since { margin-top: 12px; font-size: 0.82rem; color: var(--muted); }
+  .anchor-since b { color: var(--text); font-weight: 600; }
+
+  /* ---- Converter ---- */
+  .conv-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 0.95rem; }
+  .conv-out {
+    margin-top: 14px; font-size: 0.95rem; line-height: 1.5; color: var(--muted);
+  }
+  .conv-out b { color: var(--gold); font-weight: 600; }
+
+  footer { text-align: center; color: var(--muted); font-size: 0.74rem; margin-top: 28px; line-height: 1.7; }
+  footer a { color: var(--muted); }
+  .tip {
+    text-align: center; color: var(--muted); font-size: 0.74rem;
+    margin-top: 16px; padding: 12px 14px;
+    border: 1px dashed var(--border); border-radius: 12px;
+  }
+  .tip b { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <span class="brand">
+      <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <circle cx="16" cy="16" r="13" stroke="currentColor" stroke-width="1.4" opacity="0.85"/>
+        <path d="M16 16 L16 7 M16 16 L23 19.5" stroke="#D4A843" stroke-width="1.6" stroke-linecap="round"/>
+        <circle cx="16" cy="16" r="1.6" fill="#D4A843"/>
+      </svg>
+      Time&nbsp;Warp
+    </span>
+    <p class="tagline" id="tagline">Every day is a week.</p>
+  </header>
+
+  <!-- ===== LIVE DISPLAY ===== -->
+  <div class="display">
+    <div class="label">Time elapsed (warped)</div>
+    <div class="scaled" id="scaled">—</div>
+    <div class="seconds" id="seconds"></div>
+    <div class="real-line" id="realLine"></div>
+  </div>
+
+  <!-- ===== RATE ===== -->
+  <div class="card">
+    <h2>How fast does time run?</h2>
+    <div class="chips" id="chips">
+      <button class="chip" data-ratio="7">Day = Week (7×)</button>
+      <button class="chip" data-ratio="10">Day = 10 days (10×)</button>
+      <button class="chip" data-ratio="30">Day = Month (30×)</button>
+      <button class="chip" data-ratio="365">Day = Year (365×)</button>
+      <button class="chip" data-ratio="custom">Custom</button>
+    </div>
+    <div class="custom-rate" id="customRate">
+      1 real day&nbsp;=&nbsp;<input type="number" id="customNum" min="0.01" step="0.5" value="7" /> scaled days
+    </div>
+    <p class="rate-note" id="rateNote"></p>
+  </div>
+
+  <!-- ===== ANCHOR ===== -->
+  <div class="card">
+    <h2>Counting from</h2>
+    <div class="anchor-row">
+      <input type="datetime-local" id="anchorInput" />
+      <button class="btn gold" id="nowBtn">Now</button>
+    </div>
+    <p class="anchor-since" id="anchorSince"></p>
+  </div>
+
+  <!-- ===== QUICK CONVERTER ===== -->
+  <div class="card">
+    <h2>Quick converter</h2>
+    <div class="conv-row">
+      <input type="number" id="convNum" min="0" step="1" value="30" />
+      <select id="convUnit">
+        <option value="60000">real minutes</option>
+        <option value="3600000">real hours</option>
+        <option value="86400000">real days</option>
+        <option value="1000">real seconds</option>
+      </select>
+    </div>
+    <p class="conv-out" id="convOut"></p>
+  </div>
+
+  <p class="tip">
+    📲 <b>Add to Home Screen</b> from the Share menu in Safari and Time Warp opens
+    full-screen like an app — pinned next to your real clock.
+  </p>
+
+  <footer>
+    Part of <a href="/">Infinite Canvas</a> ·
+    <a href="../weather-app/">Weather</a> ·
+    <a href="../surf/">Surf finder</a><br/>
+    Your settings are saved on this device only.
+  </footer>
+
+</div>
+
+<script>
+  "use strict";
+  const $ = id => document.getElementById(id);
+
+  const LS_RATIO = "tw_ratio";
+  const LS_ANCHOR = "tw_anchor";
+
+  // ---- State (persisted) ----
+  let ratio = parseFloat(localStorage.getItem(LS_RATIO)) || 7;
+  let anchor = parseInt(localStorage.getItem(LS_ANCHOR), 10);
+  if (!anchor || isNaN(anchor)) {
+    anchor = Date.now();
+    localStorage.setItem(LS_ANCHOR, String(anchor));
+  }
+
+  // ---- Helpers ----
+  const MIN = 60000, HOUR = 3600000, DAY = 86400000, WEEK = 604800000;
+
+  // Break a duration in ms into calendar-ish units (weeks/days/hrs/min).
+  function breakdown(ms) {
+    ms = Math.max(0, ms);
+    const weeks = Math.floor(ms / WEEK); ms -= weeks * WEEK;
+    const days = Math.floor(ms / DAY); ms -= days * DAY;
+    const hours = Math.floor(ms / HOUR); ms -= hours * HOUR;
+    const mins = Math.floor(ms / MIN); ms -= mins * MIN;
+    const secs = Math.floor(ms / 1000);
+    return { weeks, days, hours, mins, secs };
+  }
+
+  // Human, rounded one-line phrase like "3 weeks, 4 days, 6 hours".
+  function humanize(ms) {
+    const b = breakdown(ms);
+    const parts = [];
+    const push = (n, s) => { if (n) parts.push(n + " " + s + (n === 1 ? "" : "s")); };
+    push(b.weeks, "week"); push(b.days, "day"); push(b.hours, "hour");
+    if (parts.length < 2) push(b.mins, "minute");
+    if (!parts.length) push(b.secs || 1, "second");
+    return parts.slice(0, 3).join(", ");
+  }
+
+  function unitBlock(num, suffix) {
+    return '<span class="unit"><span class="num">' + num + '</span><span class="suf">' + suffix + '</span></span>';
+  }
+
+  // ---- Render the big live display ----
+  function renderClock() {
+    const realMs = Date.now() - anchor;
+    const scaledMs = realMs * ratio;
+    const b = breakdown(scaledMs);
+
+    let html = "";
+    if (b.weeks) html += unitBlock(b.weeks, b.weeks === 1 ? "week" : "weeks");
+    if (b.weeks || b.days) html += unitBlock(b.days, "d");
+    html += unitBlock(b.hours, "h");
+    html += unitBlock(b.mins, "m");
+    $("scaled").innerHTML = html;
+
+    $("seconds").textContent = "+ " + b.secs + "s  (warped)";
+    $("realLine").textContent = "In real time: " + (humanize(realMs) || "just now") + " elapsed.";
+  }
+
+  // ---- Rate UI ----
+  function renderRate() {
+    const preset = [7, 10, 30, 365].includes(ratio);
+    document.querySelectorAll(".chip").forEach(c => {
+      const v = c.dataset.ratio;
+      c.classList.toggle("active", v === String(ratio) || (v === "custom" && !preset));
+    });
+    $("customRate").classList.toggle("show", !preset);
+    $("customNum").value = ratio;
+
+    // Plain-language explainer using a friendly example.
+    const exMin = 30;
+    const exScaledMin = exMin * ratio;
+    let exPhrase;
+    if (exScaledMin >= 60) {
+      const h = exScaledMin / 60;
+      exPhrase = (Number.isInteger(h) ? h : h.toFixed(1)) + " hours";
+    } else {
+      exPhrase = exScaledMin + " minutes";
+    }
+    let dayEq;
+    if (ratio === 7) dayEq = "a week";
+    else if (ratio === 30) dayEq = "a month";
+    else if (ratio === 365) dayEq = "a year";
+    else dayEq = ratio + " days";
+    $("rateNote").innerHTML =
+      "One real day feels like <b>" + dayEq + "</b>. " +
+      "So <b>30 real minutes</b> = <b>" + exPhrase + "</b> of warped time.";
+    $("tagline").textContent =
+      ratio === 7 ? "Every day is a week."
+      : ratio === 30 ? "Every day is a month."
+      : ratio === 365 ? "Every day is a year."
+      : "Time runs " + ratio + "× faster.";
+    renderConverter();
+  }
+
+  function setRatio(r) {
+    ratio = r;
+    localStorage.setItem(LS_RATIO, String(r));
+    renderRate();
+    renderClock();
+  }
+
+  document.querySelectorAll(".chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      const v = chip.dataset.ratio;
+      if (v === "custom") {
+        $("customRate").classList.add("show");
+        document.querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
+        chip.classList.add("active");
+        $("customNum").focus();
+      } else {
+        setRatio(parseFloat(v));
+      }
+    });
+  });
+  $("customNum").addEventListener("input", () => {
+    const v = parseFloat($("customNum").value);
+    if (v > 0) setRatio(v);
+  });
+
+  // ---- Anchor UI ----
+  // datetime-local needs a local "YYYY-MM-DDTHH:mm" string.
+  function toLocalInput(ts) {
+    const d = new Date(ts - new Date().getTimezoneOffset() * 60000);
+    return d.toISOString().slice(0, 16);
+  }
+  function renderAnchor() {
+    $("anchorInput").value = toLocalInput(anchor);
+    const d = new Date(anchor);
+    $("anchorSince").innerHTML = "Started <b>" +
+      d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) + "</b>.";
+  }
+  function setAnchor(ts) {
+    anchor = ts;
+    localStorage.setItem(LS_ANCHOR, String(ts));
+    renderAnchor();
+    renderClock();
+  }
+  $("nowBtn").addEventListener("click", () => setAnchor(Date.now()));
+  $("anchorInput").addEventListener("change", () => {
+    const t = new Date($("anchorInput").value).getTime();
+    if (!isNaN(t)) setAnchor(t);
+  });
+
+  // ---- Converter ----
+  function renderConverter() {
+    const amount = parseFloat($("convNum").value);
+    const unitMs = parseInt($("convUnit").value, 10);
+    if (isNaN(amount) || amount < 0) { $("convOut").textContent = ""; return; }
+    const scaledMs = amount * unitMs * ratio;
+    const unitLabel = $("convUnit").selectedOptions[0].textContent.replace("real ", "");
+    $("convOut").innerHTML =
+      amount + " " + unitLabel + " of real time = <b>" + humanize(scaledMs) + "</b> warped.";
+  }
+  $("convNum").addEventListener("input", renderConverter);
+  $("convUnit").addEventListener("change", renderConverter);
+
+  // ---- Boot ----
+  renderRate();
+  renderAnchor();
+  renderClock();
+  setInterval(renderClock, 1000);
+  // Re-sync immediately when returning to the tab (iOS throttles timers in background).
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) renderClock(); });
+</script>
+</body>
+</html>
