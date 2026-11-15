@@ -334,3 +334,6 @@ html.tv-root { font-size: clamp(20px, 1.42vw, 44px); }
   ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
 }
 .note:empty { display: none; }
+[tabindex="-1"]:focus-visible { outline: none; }
+.tv .counts-wrap { position: relative; margin-top: 0; }
+.tv .you-tag { display: none; }
