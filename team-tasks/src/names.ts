@@ -58,6 +58,9 @@ export function matchName<T extends Named>(query: string, people: T[]): Match<T>
     .sort((a, b) => b.s - a.s);
   if (scored.length === 0) return { kind: 'none' };
   const best = scored[0].s;
+  // A full first name, said exactly, wins outright.
+  const exact = scored.filter((x) => x.s >= 0.97);
+  if (exact.length === 1) return { kind: 'one', item: exact[0].p };
   // Anything close to the best score is a real contender.
   const close = scored.filter((x) => best - x.s < 0.12);
   if (close.length === 1) return { kind: 'one', item: close[0].p };

@@ -10,5 +10,5 @@
     "skipLibCheck": true,
     "allowImportingTsExtensions": false
   },
-  "include": ["src", "test"]
+  "include": ["src"]
 }

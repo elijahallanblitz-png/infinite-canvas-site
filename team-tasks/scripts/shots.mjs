@@ -1,0 +1,40 @@
+// Screenshots of every screen at phone and desktop sizes. Usage: node scripts/shots.mjs <invite-url> [outDir]
+import { chromium } from 'playwright';
+import { mkdirSync } from 'node:fs';
+const invite = process.argv[2];
+const out = process.argv[3] || 'shots';
+const only = process.argv[4];
+mkdirSync(out, { recursive: true });
+const origin = new URL(invite).origin;
+const browser = await chromium.launch();
+for (const [name, viewport, scale] of [['phone', { width: 390, height: 844 }, 2], ['desktop', { width: 1440, height: 900 }, 1]]) {
+  const ctx = await browser.newContext({ viewport, deviceScaleFactor: scale, hasTouch: name === 'phone', isMobile: name === 'phone', reducedMotion: 'reduce' });
+  const page = await ctx.newPage();
+  page.on('console', (m) => { if (m.type() === 'error') console.log(`[${name}] console:`, m.text()); });
+  page.on('pageerror', (e) => console.log(`[${name}] pageerror:`, e.message));
+  const snap = async (label, full = false) => { if (only && !label.includes(only)) return; await page.waitForTimeout(350); await page.screenshot({ path: `${out}/${name}-${label}.png`, fullPage: full }); };
+  await page.goto(origin + '/'); await page.waitForSelector('.stage'); await snap('00-signed-out');
+  await page.goto(invite); await page.waitForSelector('.stage h1');
+  await snap('01-welcome-home');
+  await page.getByRole('button', { name: /Skip for now|I have done it|Next/ }).first().click(); await snap('02-welcome-notify');
+  await page.getByRole('button', { name: /Skip for now|Next/ }).first().click(); await snap('03-welcome-claude');
+  await page.getByRole('button', { name: /Skip/ }).click();
+  await page.waitForSelector('.person'); await snap('04-board'); await snap('05-board-full', true);
+  await page.locator('#add').click(); await page.locator('#add-title').fill('Lock the budget for the pilot'); await snap('06-add-task');
+  await page.keyboard.press('Escape');
+  await page.locator('.task-open').nth(1).click(); await snap('07-task-sheet');
+  await page.getByRole('button', { name: /Due date/ }).click(); await snap('08-task-due');
+  await page.keyboard.press('Escape');
+  await page.locator('.task:not(.s-done) button.tile').first().click(); await snap('09-undo-toast');
+  await page.waitForTimeout(5200);
+  await page.locator('[data-count="not_started"]').click(); await snap('10-filter');
+  await page.locator('[data-count="not_started"]').click();
+  await page.getByRole('button', { name: 'Activity' }).click(); await page.waitForSelector('.feed'); await snap('11-activity');
+  await page.getByRole('button', { name: 'Board' }).click();
+  await page.getByRole('button', { name: 'You', exact: true }).click(); await page.waitForSelector('.section'); await snap('12-you', true);
+  await page.getByRole('button', { name: /Connect your Claude/ }).click(); await page.waitForSelector('.steps'); await page.waitForTimeout(400); await snap('13-connect', true);
+  await page.goto(origin + '/tv'); await page.waitForSelector('.person'); await snap('14-tv');
+  await ctx.close();
+}
+await browser.close();
+console.log('shots done');
