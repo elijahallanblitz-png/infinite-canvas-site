@@ -27,6 +27,7 @@ export interface Person {
   id: number;
   name: string;
   role: 'owner' | 'member';
+  icon?: string | null;
   epoch: number;
   phone: string | null;
   notify_push: number;

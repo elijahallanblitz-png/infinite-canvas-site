@@ -41,7 +41,7 @@ export function memLimit(key: string, limit: number, windowSec: number, ms: numb
 }
 
 // ---- People lookups ----
-const PERSON_COLS = 'id, name, role, epoch, phone, notify_push, notify_sms, sms_stopped, last_digest_on, created_at, removed_at';
+const PERSON_COLS = 'id, name, role, icon, epoch, phone, notify_push, notify_sms, sms_stopped, last_digest_on, created_at, removed_at';
 export async function getPerson(env: Env, id: number): Promise<Person | null> {
   return env.DB.prepare(`SELECT ${PERSON_COLS} FROM people WHERE id = ? AND removed_at IS NULL`).bind(id).first<Person>();
 }

@@ -26,6 +26,7 @@ for (const [name, role] of PEOPLE) {
     ? `UPDATE people SET invite_hash='${hash}', epoch=epoch+1 WHERE name='${esc(name)}'; DELETE FROM sessions WHERE person_id=(SELECT id FROM people WHERE name='${esc(name)}')`
     : `INSERT INTO people (name, role, invite_hash, created_at) VALUES ('${esc(name)}', '${role}', '${hash}', ${now})`);
 }
+stmts.push("UPDATE people SET icon = CASE name WHEN 'Elijah' THEN 'surfer' WHEN 'Nevan' THEN 'adventurer' WHEN 'Gregory' THEN 'hero' ELSE icon END");
 if (flag('--sample')) {
   // Sample tasks for local development and screenshots only. Production starts empty.
   const day = 86400000;

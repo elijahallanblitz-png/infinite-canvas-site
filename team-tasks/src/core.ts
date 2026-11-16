@@ -247,7 +247,7 @@ export async function boardPayload(env: Env, me: Person) {
   return {
     version,
     today: pacific(t).date,
-    people: people.map((p) => ({ id: p.id, name: p.name, role: p.role })),
+    people: people.map((p) => ({ id: p.id, name: p.name, role: p.role, icon: p.icon ?? null })),
     tasks: tasks.map((k) => ({
       id: k.id, title: k.title, owner_id: k.owner_id, status: k.status, due_on: k.due_on,
       created_by: k.created_by, updated_by: k.updated_by, created_at: k.created_at, updated_at: k.updated_at,

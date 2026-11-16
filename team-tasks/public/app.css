@@ -358,3 +358,43 @@ button.person-toggle:hover { background: rgba(232,230,225,0.03); }
 .tv .person-toggle { min-height: 0; }
 @media (min-width: 1024px) { .person { padding: 0; } .person-toggle { padding: 22px 22px 18px; } .person-panel { padding: 0 22px 16px; } }
 @media (prefers-reduced-motion: reduce) { .person-toggle .drop { transition: none; } .person-panel { animation: none; } }
+
+/* ---------- Character icons ---------- */
+.person-toggle { grid-template-columns: auto minmax(0, 1fr) auto; }
+.person-toggle .avatar { grid-column: 1; grid-row: 1 / span 2; width: 64px; height: 64px; margin-right: 4px; border-radius: 18px; background: var(--deep); border: 1px solid var(--line); overflow: hidden; }
+.person-toggle .person-name, .person-toggle .person-sub { grid-column: 2; }
+.person-toggle .drop { grid-column: 3; }
+.tv .person-toggle { display: grid; column-gap: 0.8rem; align-items: center; padding: 1.1rem 1.2rem 0.9rem; margin: 0; }
+.tv .person-toggle .avatar { width: 3.6rem; height: 3.6rem; }
+.tv .person-panel { padding: 0 1.2rem 0.8rem; }
+.avatar * { transform-box: fill-box; transform-origin: center; }
+.av-ride { animation: av-ride 3.6s ease-in-out infinite; transform-origin: 50% 80%; }
+.av-wave { animation: av-wave 3.6s ease-in-out infinite; }
+.av-wave.w2 { animation-delay: -1.2s; }
+.av-star { animation: twinkle 2.8s ease-in-out infinite alternate; --o: 1; }
+.av-star.s2 { animation-delay: -1.4s; }
+.av-whip { stroke-dasharray: 100; animation: av-whip 4.2s cubic-bezier(0.16, 1, 0.3, 1) infinite; }
+.av-nod { animation: av-nod 4.2s ease-in-out infinite; transform-origin: 50% 90%; }
+.av-lapel.l { animation: av-open-l 6s cubic-bezier(0.16, 1, 0.3, 1) infinite; transform-origin: 0% 100%; }
+.av-lapel.r { animation: av-open-r 6s cubic-bezier(0.16, 1, 0.3, 1) infinite; transform-origin: 100% 100%; }
+.av-tie { animation: av-tie 6s cubic-bezier(0.16, 1, 0.3, 1) infinite; transform-origin: 50% 0%; }
+.av-emblem { animation: av-emblem 6s ease-in-out infinite; }
+.av-specs { animation: av-specs 6s cubic-bezier(0.16, 1, 0.3, 1) infinite; }
+@keyframes av-ride { 0%, 100% { transform: translateY(1.5px) rotate(-5deg); } 50% { transform: translateY(-2.5px) rotate(4deg); } }
+@keyframes av-wave { 0%, 100% { transform: translateX(-1.5px); } 50% { transform: translateX(2px); } }
+@keyframes av-whip { 0%, 18% { stroke-dashoffset: 100; } 34%, 82% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: -100; } }
+@keyframes av-nod { 0%, 20%, 100% { transform: rotate(0); } 30% { transform: rotate(-4deg); } 42% { transform: rotate(1.5deg); } 55% { transform: rotate(0); } }
+@keyframes av-open-l { 0%, 22%, 100% { transform: none; } 36%, 86% { transform: translateX(-7px) skewX(10deg) scaleX(0.6); } }
+@keyframes av-open-r { 0%, 22%, 100% { transform: none; } 36%, 86% { transform: translateX(7px) skewX(-10deg) scaleX(0.6); } }
+@keyframes av-tie { 0%, 22%, 100% { transform: none; opacity: 1; } 36%, 86% { transform: rotate(38deg) translateX(8px); opacity: 0; } }
+@keyframes av-emblem { 0%, 30%, 100% { filter: none; } 46%, 80% { filter: drop-shadow(0 0 4px rgba(212,168,67,0.9)); } }
+@keyframes av-specs { 0%, 26%, 100% { transform: none; opacity: 1; } 40%, 86% { transform: translateY(-9px); opacity: 0; } }
+/* Reduced motion: still pictures. The shirt rests open so the emblem shows. */
+@media (prefers-reduced-motion: reduce) {
+  .avatar * { animation: none !important; }
+  .av-whip { stroke-dashoffset: 0; }
+  .av-lapel.l { transform: translateX(-7px) skewX(10deg) scaleX(0.6); }
+  .av-lapel.r { transform: translateX(7px) skewX(-10deg) scaleX(0.6); }
+  .av-tie { transform: rotate(38deg) translateX(8px); opacity: 0; }
+  .av-specs { opacity: 0; }
+}

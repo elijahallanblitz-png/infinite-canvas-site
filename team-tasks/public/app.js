@@ -294,6 +294,55 @@ function renderHeader(kind, title) {
   top.replaceChildren(flare(), inner);
 }
 
+// ---------- character icons: original drawings in the brand's line style ----------
+const AVATAR = {
+  // A chrome rider on a cosmic wave.
+  surfer: `<defs><linearGradient id="chrome" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="0.5" stop-color="#aeb9c2"/><stop offset="1" stop-color="#e8eef2"/></linearGradient></defs>
+    <path class="av-wave" d="M2 47c7-13 17-17 25-11 8 6 3 14-4 12" fill="none" stroke="#4f98a3" stroke-width="2.2" stroke-linecap="round"/>
+    <path class="av-wave w2" d="M2 53c12-5 22 4 34 0s16-9 26-7" fill="none" stroke="#7fc4cf" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M6 59c14-4 26 3 52-3" fill="none" stroke="#4f98a3" stroke-width="1.4" stroke-linecap="round" opacity="0.6"/>
+    <g class="av-ride">
+      <path d="M18 45c10 4 26 1 36-9-10 1-24 3-36 9z" fill="url(#chrome)" stroke="#e8e6e1" stroke-width="1"/>
+      <circle cx="40" cy="15" r="4.6" fill="url(#chrome)"/>
+      <path d="M39 20l-5 10 5 6-4 6M34 30l9 4 3 5M37 23l-10 1M38 23l9-5" fill="none" stroke="url(#chrome)" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <circle class="av-star" cx="54" cy="12" r="1.3" fill="#d4a843"/><circle class="av-star s2" cx="10" cy="18" r="1" fill="#e8e6e1"/>`,
+  // A close-up under a wide-brimmed hat, with a cracking whip.
+  adventurer: `<path class="av-whip" d="M50 50c8-6 9-16 2-20-8-4-15 3-11 9 3 5 11 3 10-3" fill="none" stroke="#d4a843" stroke-width="2" stroke-linecap="round" pathLength="100"/>
+    <path d="M44 53l8-4" stroke="#d4a843" stroke-width="3.4" stroke-linecap="round"/>
+    <g class="av-nod">
+      <path d="M18 30c0 13 5 22 13 22s13-9 13-22" fill="#141414" stroke="#e8e6e1" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M24 44c3 3 11 3 14 0" fill="none" stroke="#e8e6e1" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M22 46c2 5 16 5 18 0" fill="none" stroke="#a3a199" stroke-width="1.2" stroke-linecap="round" stroke-dasharray="1.5 2.5"/>
+      <path d="M21 26c0-11 3-17 7-17 2 0 2 2 4 2s2-2 4-2c4 0 6 6 7 17z" fill="#2a2416" stroke="#d4a843" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M21.500 22.500h21" stroke="#d4a843" stroke-width="3" opacity="0.75"/>
+      <path d="M9 30c7-5 39-5 46 0-7 3.500-39 3.500-46 0z" fill="#2a2416" stroke="#d4a843" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M24 35.500h5M34 35.500h5" stroke="#e8e6e1" stroke-width="2" stroke-linecap="round"/>
+    </g>`,
+  // A mild-mannered shirt pulled open to show the emblem underneath. The letter is the person's own initial.
+  hero: (initial) => `<path d="M8 62c2-14 10-20 24-20s22 6 24 20z" fill="#1b1b1a" stroke="#e8e6e1" stroke-width="2" stroke-linejoin="round"/>
+    <g class="av-emblem"><path d="M32 60l-13-12 5-8h16l5 8z" fill="rgba(79,152,163,0.25)" stroke="#d4a843" stroke-width="2" stroke-linejoin="round"/>
+      <text x="32" y="53.500" text-anchor="middle" font-family="Cinzel, serif" font-size="11" fill="#d4a843">${initial}</text></g>
+    <path class="av-lapel l" d="M10 62c1-12 7-18 20-20l2 4-4 16z" fill="#e8e6e1" stroke="#141414" stroke-width="1"/>
+    <path class="av-lapel r" d="M54 62c-1-12-7-18-20-20l-2 4 4 16z" fill="#e8e6e1" stroke="#141414" stroke-width="1"/>
+    <path class="av-tie" d="M32 45l-3 5 3 12 3-12z" fill="#4f98a3"/>
+    <path d="M26 41v-5h12v5" fill="none" stroke="#e8e6e1" stroke-width="2"/>
+    <path d="M20 22c0-9 5-15 12-15s12 6 12 15c0 9-5 15-12 15s-12-6-12-15z" fill="#141414" stroke="#e8e6e1" stroke-width="2"/>
+    <path d="M20 20c3-8 8-11 12-11 6 0 10 3 12 9-5 1-9-1-12-5-3 4-7 6-12 7z" fill="#e8e6e1"/>
+    <g class="av-specs"><rect x="22.500" y="21" width="8" height="6" rx="2" fill="none" stroke="#d4a843" stroke-width="1.6"/><rect x="33.500" y="21" width="8" height="6" rx="2" fill="none" stroke="#d4a843" stroke-width="1.6"/><path d="M30.500 23.500h3" stroke="#d4a843" stroke-width="1.6"/></g>
+    <path d="M28 31c2 1.600 6 1.600 8 0" fill="none" stroke="#e8e6e1" stroke-width="1.6" stroke-linecap="round"/>`,
+};
+function avatar(p) {
+  const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  s.setAttribute('viewBox', '0 0 64 64'); s.setAttribute('aria-hidden', 'true');
+  const initial = (p.name[0] || '?').toUpperCase().replace(/[^A-Z0-9]/, '?');
+  const art = AVATAR[p.icon];
+  s.setAttribute('class', 'avatar av-' + (art ? p.icon : 'plain'));
+  s.innerHTML = art ? (typeof art === 'function' ? art(initial) : art)
+    : `<circle cx="32" cy="32" r="24" fill="none" stroke="#e8e6e1" stroke-width="1.6" opacity="0.8"/><text x="32" y="40" text-anchor="middle" font-family="Cinzel, serif" font-size="22" fill="#d4a843">${initial}</text>`;
+  return s;
+}
+
 // ---------- board ----------
 function sortTasks(list) {
   return [...list].sort((a, b) => {
@@ -348,6 +397,7 @@ function personCard(p, tv) {
     ? h('span', { class: 'tally-none', text: 'No tasks yet' })
     : ORDER.map((s) => h('span', { class: `tally-item s-${s}` }, icon(STATUS[s].icon), h('span', { text: n[s] }), h('span', { class: 'sr', text: ' ' + STATUS[s].word.toLowerCase() + '. ' }))));
   const headText = [
+    avatar(p),
     h('span', { class: 'person-name', text: p.name }),
     h('span', { class: 'person-sub' }, mine && h('span', { class: 'you-tag', text: 'You' }), tally),
   ];
