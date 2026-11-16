@@ -12,7 +12,7 @@ const decoded = new Map<string, Uint8Array>();
 
 function cacheFor(path: string): string {
   if (path.startsWith('/fonts/')) return 'public, max-age=31536000, immutable';
-  if (path.startsWith('/icons/') || path.startsWith('/splash/') || path === '/hero.webp') return 'public, max-age=604800';
+  if (path.startsWith('/icons/') || path.startsWith('/avatars/') || path.startsWith('/splash/') || path === '/hero.webp') return 'public, max-age=604800';
   return 'no-cache'; // html, css, js, sw: always revalidate (cheap, thanks to ETags), so a deploy shows up at once
 }
 
