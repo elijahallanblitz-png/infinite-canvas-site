@@ -64,10 +64,12 @@ const store = {
 };
 
 // ---------- state ----------
+function loadOpen() { try { return JSON.parse(localStorage.getItem('tt_open') || '{}') || {}; } catch { return {}; } }
+function saveOpen() { store.set('tt_open', JSON.stringify(S.open)); }
 const S = {
   loaded: false, signedOut: false, signedOutWhy: '',
   me: null, config: { push_key: null, sms: false }, people: [], tasks: [], asks: [], version: 0,
-  filter: null, showDone: {}, sweep: null, activity: null, pushOn: false, installEvent: null,
+  filter: null, showDone: {}, open: loadOpen(), sweep: null, activity: null, pushOn: false, installEvent: null,
   welcome: null, // { step } while the welcome is open
 };
 const isTV = () => location.pathname === '/tv';
@@ -196,6 +198,7 @@ function removeTask(task) {
 async function addTask(title, ownerId, due) {
   const temp = { id: -Date.now(), title, owner_id: ownerId, status: 'not_started', due_on: due, created_by: S.me.id, updated_by: S.me.id, created_at: Date.now(), status_changed_at: Date.now(), checked_at: null, pending: true };
   S.tasks.push(temp);
+  S.open[ownerId] = true; saveOpen();
   render({ glide: true });
   try {
     const d = await api('POST', '/api/tasks', { title, owner_id: ownerId, due_on: due });
@@ -336,20 +339,37 @@ function personCard(p, tv) {
   const limit = tv ? 2 : 3;
   const hideDone = !S.filter && !S.showDone[p.id] && done.length > limit;
   const shown = hideDone ? list.filter((t) => t.status !== 'done').concat(done.slice(0, limit)) : list;
-  const card = h('section', { class: 'card person', 'aria-label': `${p.name}'s tasks` });
+  const isOpen = tv || Boolean(S.filter) || Boolean(S.open[p.id]);
+  const all = S.tasks.filter((t) => t.owner_id === p.id);
+  const n = { not_started: 0, in_progress: 0, done: 0 };
+  for (const t of all) n[t.status]++;
+  const card = h('section', { class: 'card person' + (isOpen ? ' open' : ''), 'aria-label': `${p.name}'s tasks` });
+  const tally = h('span', { class: 'tally' }, all.length === 0
+    ? h('span', { class: 'tally-none', text: 'No tasks yet' })
+    : ORDER.map((s) => h('span', { class: `tally-item s-${s}` }, icon(STATUS[s].icon), h('span', { text: n[s] }), h('span', { class: 'sr', text: ' ' + STATUS[s].word.toLowerCase() + '. ' }))));
+  const headText = [
+    h('span', { class: 'person-name', text: p.name }),
+    h('span', { class: 'person-sub' }, mine && h('span', { class: 'you-tag', text: 'You' }), tally),
+  ];
+  const panelId = 'tasks-' + p.id;
   card.append(h('div', { class: 'person-head' },
-    h('div', null,
-      h('h2', { class: 'person-name', text: p.name }),
-      h('p', { class: 'person-sub' }, mine && h('span', { class: 'you-tag', text: 'You · ' }), open === 0 ? 'Nothing open' : `${open} open`)),
-    !tv && h('button', { class: 'mini', type: 'button', 'aria-label': `Add a task for ${mine ? 'yourself' : p.name}`, onclick: () => openAdd(p.id) }, icon('plus'), 'Add'),
+    tv ? h('h2', { class: 'person-toggle' }, headText)
+      : h('h2', { class: 'person-h' }, h('button', {
+        class: 'person-toggle', type: 'button', 'aria-expanded': String(isOpen), 'aria-controls': panelId,
+        onclick: () => { S.open[p.id] = !isOpen; if (S.filter) S.filter = null; saveOpen(); render({ glide: true }); },
+      }, headText, icon('chev', 'drop'))),
   ));
+  if (!isOpen) return card;
+  const panel = h('div', { class: 'person-panel', id: panelId });
   if (shown.length === 0) {
-    card.append(h('div', { class: 'empty' }, h('p', { text: S.filter ? `Nothing ${STATUS[S.filter].word.toLowerCase()} here.` : mine ? 'Your list is clear.' : `${p.name} has nothing yet.` })));
+    panel.append(h('div', { class: 'empty' }, h('p', { text: S.filter ? `Nothing ${STATUS[S.filter].word.toLowerCase()} here.` : mine ? 'Your list is clear.' : `${p.name} has nothing yet.` })));
   } else {
     const ul = h('ul', { class: 'tasks' }, shown.map((t) => taskRow(t, tv)));
     if (hideDone && !tv) ul.append(h('li', null, h('button', { class: 'mini more-done', type: 'button', onclick: () => { S.showDone[p.id] = true; render(); } }, `Show ${done.length - limit} more done`)));
-    card.append(ul);
+    panel.append(ul);
   }
+  if (!tv) panel.append(h('button', { class: 'mini add-here', type: 'button', onclick: () => openAdd(p.id) }, icon('plus'), mine ? 'Add a task for me' : `Add a task for ${p.name}`));
+  card.append(panel);
   return card;
 }
 function countsBar(tv) {

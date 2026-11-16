@@ -33,6 +33,13 @@ test('join by link, add for a teammate, change status, undo, check in, and sync 
   await expect(elijah.locator('.person-name').first()).toHaveText('Elijah');
   await expect(nevan.locator('.person-name').first()).toHaveText('Nevan');
 
+  // The board opens as three names. Tap a name to drop its tasks down.
+  await expect(elijah.locator('.person-toggle')).toHaveCount(3);
+  await expect(elijah.locator('.person-toggle').first()).toHaveAttribute('aria-expanded', 'false');
+  await expect(elijah.locator('.task')).toHaveCount(0);
+  await nevan.getByRole('button', { name: /^Nevan/ }).click();
+  await expect(nevan.getByRole('button', { name: /^Nevan/ })).toHaveAttribute('aria-expanded', 'true');
+
   // Add a task for another person.
   await elijah.getByRole('button', { name: 'Add a task', exact: true }).click();
   await expect(elijah.getByRole('heading', { name: 'What needs doing?' })).toBeVisible();

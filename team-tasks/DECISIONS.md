@@ -25,6 +25,7 @@ One line each. Newest thinking wins; the code is the source of truth.
 ## Board
 - Status tile tap moves one step forward. Tapping a done tile opens the task sheet.
 - Counts sit at the top and stick there on scroll. Tapping a count filters the board. The Add button is docked at the bottom, by the thumb.
+- The board opens as names only. Tap a name to drop its tasks down; the choice is remembered on that device. Each name shows its three counts. The wall display shows everything open.
 - Each person's card shows 3 done tasks, then "Show N more done", so finished work does not bury open work.
 - Open tasks sort by due date, soonest first. Done tasks sort newest first.
 - "This week" means this Friday. From Friday on it means Sunday.
