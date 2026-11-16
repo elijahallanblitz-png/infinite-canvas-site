@@ -35,7 +35,7 @@ One line each. Newest thinking wins; the code is the source of truth.
 - Haptic tap uses `navigator.vibrate`. iPhones do not support it, so there it is silent.
 - Undo for a status change is 5 seconds. Undo for a removal is 7.
 
-- Each name has a character picture supplied by the owner (Elijah: silver surfer, Nevan: adventurer, Gregory: shirt-opening hero), cropped to 240px and gently animated in CSS. They are the owner's images for private team use; swap the files in `public/avatars/` to change them. New people get their initial in a ring.
+- Each name has a character picture supplied by the owner (Elijah: silver surfer, Nevan: adventurer, Gregory: shirt-opening hero), cropped to 240px. They sit still: the owner found motion distracting. They are the owner's images for private team use; swap the files in `public/avatars/` to change them. New people get their initial in a ring.
 
 ## Check-ins and notifications
 - Any status change by anyone answers open check-ins on that task and tells the person who asked.

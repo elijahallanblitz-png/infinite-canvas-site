@@ -299,7 +299,7 @@ const PICTURES = ['surfer', 'adventurer', 'hero'];
 function avatar(p) {
   if (PICTURES.includes(p.icon)) {
     return h('span', { class: 'avatar av-' + p.icon, 'aria-hidden': 'true' },
-      h('img', { src: `/avatars/${p.icon}.webp`, alt: '', width: '72', height: '72', decoding: 'async' }), h('i', { class: 'glint' }));
+      h('img', { src: `/avatars/${p.icon}.webp`, alt: '', width: '72', height: '72', decoding: 'async' }));
   }
   const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   s.setAttribute('viewBox', '0 0 64 64'); s.setAttribute('aria-hidden', 'true'); s.setAttribute('class', 'avatar av-plain');
