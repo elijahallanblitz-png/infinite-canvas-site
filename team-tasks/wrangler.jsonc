@@ -4,18 +4,14 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-11-01",
   "workers_dev": true,
-  "assets": {
-    "directory": "./public",
-    "binding": "ASSETS",
-    "not_found_handling": "single-page-application",
-    // Only these paths run code. Everything else is served straight from the edge.
-    "run_worker_first": ["/api/*", "/join/*", "/claude/*", "/webhooks/*", "/manifest.webmanifest", "/.well-known/*"]
-  },
+  "preview_urls": false,
+  // The app's files are packed into the Worker (scripts/bundle-static.mjs), so one upload deploys everything.
+  "build": { "command": "node scripts/bundle-static.mjs", "watch_dir": "public" },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "team-tasks",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "c07f48f2-2d35-40dd-9f28-dee2a9d74e1c",
       "migrations_dir": "migrations"
     }
   ],

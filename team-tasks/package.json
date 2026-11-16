@@ -9,8 +9,9 @@
     "db:remote": "wrangler d1 migrations apply team-tasks --remote",
     "keys": "node scripts/generate-keys.mjs",
     "seed": "node scripts/seed.mjs",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "bundle": "node scripts/bundle-static.mjs",
+    "typecheck": "node scripts/bundle-static.mjs && tsc --noEmit",
+    "test": "node scripts/bundle-static.mjs && vitest run",
     "e2e": "playwright test",
     "deploy": "wrangler deploy"
   },

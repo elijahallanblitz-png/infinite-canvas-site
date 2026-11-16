@@ -7,3 +7,4 @@ playwright-report/
 shots/
 *.log
 .secrets*
+src/static.gen.ts

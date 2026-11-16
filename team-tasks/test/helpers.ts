@@ -45,7 +45,6 @@ export async function makeRig(startAt = TUE_1030): Promise<Rig> {
   const pub = Buffer.from(await webcrypto.subtle.exportKey('raw', pair.publicKey)).toString('base64url');
   const env: Env = {
     DB: fakeD1(),
-    ASSETS: { fetch: async () => new Response('<html>app</html>', { headers: { 'content-type': 'text/html' } }) } as unknown as Fetcher,
     APP_SECRET: 'test-secret-' + randomBytes(16).toString('hex'),
     VAPID_PUBLIC_KEY: pub,
     VAPID_PRIVATE_KEY: JSON.stringify(jwk),

@@ -5,7 +5,9 @@ One line each. Newest thinking wins; the code is the source of truth.
 ## Platform
 - Cloudflare, one Worker: app, API, connector, D1, hourly Cron. One account, one login, free tier. No simpler path found in the docs.
 - The app lives in `team-tasks/` inside the site repo. The marketing site at the repo root is untouched.
-- `wrangler.jsonc` (the format Cloudflare now recommends). Static files are served from the edge; only `/api`, `/join`, `/claude`, `/webhooks` and the manifest run code.
+- `wrangler.jsonc` (the format Cloudflare now recommends).
+- The app's files (about 650 KB with fonts, icons and splash screens) are packed into the Worker script instead of Cloudflare's static-assets store. The assets upload could not authenticate from the build sandbox; one script upload could. ETags and long cache times keep it fast (live Lighthouse performance: 100).
+- Live address: https://team-tasks.infinitecanvas.workers.dev (workers.dev subdomain `infinitecanvas` registered for the account).
 - No framework and no UI kit. Hand-written HTML, CSS and one JS module (about 30 KB before compression). No build step.
 - Fonts (Cinzel 400, Lexend variable) are self-hosted: faster on cellular, no third-party requests.
 - Cron runs every hour in UTC. The code decides what the Pacific hour means, so daylight saving needs no config change.

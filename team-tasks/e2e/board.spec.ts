@@ -94,7 +94,7 @@ test('join by link, add for a teammate, change status, undo, check in, and sync 
   // The wall display shows the board with no controls.
   await nevan.goto('/tv');
   await expect(nevan.getByRole('heading', { name: 'Team Tasks' })).toBeVisible();
-  await expect(nevan.locator('.person').first()).toBeVisible();
+  await expect(nevan.locator('.counts')).toBeVisible();
   await expect(nevan.getByRole('button')).toHaveCount(0);
 
   await elijah.context().close();

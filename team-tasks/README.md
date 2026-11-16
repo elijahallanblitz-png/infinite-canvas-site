@@ -1,9 +1,11 @@
 # Team Tasks
 
+Live at https://team-tasks.infinitecanvas.workers.dev
+
 The shared task board for Infinite Canvas. One Cloudflare Worker serves the app, the API and the Claude connector. Data lives in D1. A Cron Trigger runs every hour.
 
 - `src/` — the Worker (TypeScript). `core.ts` holds the board rules. `connector.ts` is "Connect your Claude". `notify.ts` is the one notify function; `push.ts` and `sms.ts` are its two channels.
-- `public/` — the app. Hand-written HTML, CSS and JS. No build step.
+- `public/` — the app. Hand-written HTML, CSS and JS. `scripts/bundle-static.mjs` packs it into the Worker on every dev run and deploy.
 - `migrations/` — the D1 schema.
 - `test/` — unit tests. `e2e/` — browser tests.
 - `DECISIONS.md` — every choice made along the way.

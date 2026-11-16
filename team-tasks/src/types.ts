@@ -1,6 +1,5 @@
 export interface Env {
   DB: D1Database;
-  ASSETS: Fetcher;
   APP_SECRET: string;
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_KEY?: string; // JWK JSON

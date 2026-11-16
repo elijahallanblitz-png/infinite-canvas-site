@@ -11,6 +11,7 @@ import { notify } from './notify';
 import { runCron } from './nudge';
 import { pushConfigured } from './push';
 import { classifyInbound, HELP_TEXT, normalizePhone, smsConfigured, twiml, validTwilioRequest } from './sms';
+import { serveStatic } from './static';
 import { AppError, type Env, type Person } from './types';
 import { clientIp, json, now, sha256 } from './util';
 
@@ -244,7 +245,7 @@ async function route(env: Env, req: Request): Promise<Response> {
   }
   if (path === '/webhooks/twilio/sms' && req.method === 'POST') return twilioWebhook(env, req, url);
   if (path.startsWith('/api/')) return api(env, req, url);
-  return env.ASSETS.fetch(req);
+  return serveStatic(req);
 }
 
 export default {
